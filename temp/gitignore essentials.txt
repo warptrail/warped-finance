@@ -1,0 +1,7 @@
+This is my default .gitignore file:
+
+node_modules
+.env
+.vscode
+.DS_Store
+Icon?

@@ -1,0 +1,43 @@
+# Node.js dependencies
+backend/node_modules/
+frontend/node_modules/
+dist
+dist-ssr
+*.local
+
+# Environment variables
+backend/.env
+
+# Log files
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# System files
+.DS_Store
+Thumbs.db
+Icon?
+
+# Build outputs (React)
+frontend/build/
+frontend/.cache/
+
+# Editor settings
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+*.iml
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# My Sensitive Information
+backend/db/original-csv/
+backend/db/overlappingCategories.json
+backend/db/unified.csv
