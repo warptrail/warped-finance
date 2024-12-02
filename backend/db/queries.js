@@ -75,30 +75,66 @@ const updateTransaction = async (id, { category, tags }) => {
 };
 
 // * Update the category
-const updateCategory = async (name, newGroupName) => {
+const updateCategory = async (name, newCategoryName) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
 
-    // Update the category's group
+    // Fetch the current group of the category being updated
     const res = await client.query(
-      `UPDATE categories SET "groupName" = $1 WHERE name = $2 RETURNING id, name, "groupName"`,
-      [newGroupName, name]
+      `SELECT id, "groupName" FROM categories WHERE name = $1`,
+      [name]
     );
 
     if (res.rows.length === 0) {
       throw new Error(`Category ${name} not found`);
     }
 
-    // Update all transactions with this category to the new group
-    const categoryId = res.rows[0].id;
-    await client.query(
-      `UPDATE transactions SET group_id = (SELECT id FROM groups WHERE name = $1) WHERE category_id = $2`,
-      [newGroupName, categoryId]
+    const { id: oldCategoryId, groupName } = res.rows[0];
+
+    // Check if the new category name already exists
+    const newCategoryRes = await client.query(
+      `SELECT id FROM categories WHERE name = $1`,
+      [newCategoryName]
     );
 
+    let newCategoryId;
+    if (newCategoryRes.rows.length > 0) {
+      // New category name exists, use its ID
+      newCategoryId = newCategoryRes.rows[0].id;
+    } else {
+      // New category name doesn't exist, create it in the same group
+      const insertRes = await client.query(
+        `INSERT INTO categories (name, "groupName") VALUES ($1, $2) RETURNING id`,
+        [newCategoryName, groupName]
+      );
+      newCategoryId = insertRes.rows[0].id;
+      console.log(
+        `Created new category: "${newCategoryName}" in group: "${groupName}"`
+      );
+    }
+
+    // Update transactions to use the new category
+    await client.query(
+      `UPDATE transactions SET category_id = $1 WHERE category_id = $2`,
+      [newCategoryId, oldCategoryId]
+    );
+
+    // Delete the old category if no transactions remain
+    const remainingTransactions = await client.query(
+      `SELECT COUNT(*) FROM transactions WHERE category_id = $1`,
+      [oldCategoryId]
+    );
+
+    if (parseInt(remainingTransactions.rows[0].count) === 0) {
+      await client.query(`DELETE FROM categories WHERE id = $1`, [
+        oldCategoryId,
+      ]);
+      console.log(`Deleted unsused category: ${name}`);
+    }
+
     await client.query('COMMIT');
-    return res.rows[0];
+    return { oldCategoryId, newCategoryId, groupName };
   } catch (err) {
     await client.query('ROLLBACK');
     throw err;

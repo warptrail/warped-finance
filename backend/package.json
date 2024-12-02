@@ -8,7 +8,8 @@
     "dev": "nodemon src/server.js",
     "build-db": "psql -U moonshade -d warped_finance -f db/schema.sql",
     "reset-db": "psql -U moonshade -d warped_finance -f db/reset.sql",
-    "populate-db": "node db/populateDatabase.js"
+    "populate-db": "node db/populateDatabase.js",
+    "unify-data": "node db/unify-csv.js"
   },
   "author": "warptrail",
   "license": "ISC",

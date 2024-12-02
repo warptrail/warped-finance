@@ -37,6 +37,30 @@ CREATE TABLE transactions (
     location TEXT
 );
 
-INSERT INTO groups (name) VALUES ('ungrouped')
-ON CONFLICT (name) DO NOTHING;
+-- Insert Default Group "ungrouped"
+INSERT INTO groups (name) VALUES ('ungrouped') ON CONFLICT DO NOTHING;
 
+-- Dynamically Set Default group_id for Transactions
+DO $$
+DECLARE ungrouped_id INTEGER;
+BEGIN
+    SELECT id INTO ungrouped_id
+    FROM groups
+    WHERE name = 'ungrouped';
+
+    EXECUTE format('ALTER TABLE transactions ALTER COLUMN group_id SET DEFAULT %s', ungrouped_id);
+END $$;
+
+-- Insert Default Category "uncategorized" in Group "ungrouped"
+INSERT INTO categories (name, "groupName") VALUES ('uncategorized', 'ungrouped') ON CONFLICT DO NOTHING;
+
+-- Set Default for category_id Dynamically
+DO $$
+DECLARE uncategorized_id INTEGER;
+BEGIN
+    SELECT id INTO uncategorized_id
+    FROM categories
+    WHERE name = 'uncategorized' AND "groupName" = 'ungrouped';
+
+    EXECUTE format('ALTER TABLE transactions ALTER COLUMN category_id SET DEFAULT %s', uncategorized_id);
+END $$;
