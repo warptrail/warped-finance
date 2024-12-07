@@ -1,16 +1,50 @@
 const express = require('express');
 const router = express.Router();
-const { updateCategory } = require('../db/queries');
+const { getAllCategories, updateCategoryName } = require('../db/queries');
 
-router.put('/:name', async (req, res) => {
+// Get all categories
+router.get('/', async (req, res) => {
   try {
-    const { name } = req.params;
-    const { newGroupName } = req.body;
-    const result = await updateCategory(name, newGroupName);
-    res.json({ message: 'Category updated successfully', result });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ err: 'Failed to update category' });
+    const categories = await getAllCategories();
+    res.json(categories);
+  } catch (error) {
+    console.error('Error fetching categories:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Update or merge categories
+router.put('/update/:currentName', async (req, res) => {
+  const { currentName } = req.params;
+  const { newName } = req.body;
+
+  try {
+    if (!newName) {
+      return res.status(400).json({ error: 'New category name is required' });
+    }
+
+    if (newName === currentName) {
+      return res
+        .status(400)
+        .json({
+          error: 'New category name cannot be identical to old category name',
+        });
+    }
+
+    const result = await updateCategoryName(currentName, newName);
+
+    res.json({
+      message: `Category "${result.currentName}" successfully updated to "${result.newName}"`,
+      updatedCategoryId: result.updateCategoryId,
+    });
+  } catch (error) {
+    if (error.message.includes('not found')) {
+      // Custom error handling for "category not found"
+      return res.status(404).json({ error: error.message });
+    }
+
+    console.error('Error updating category:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 

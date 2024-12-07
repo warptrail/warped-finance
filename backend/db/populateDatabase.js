@@ -1,260 +1,258 @@
-const fs = require('fs');
-const csvParser = require('csv-parser');
-
-// Database connection setup
 const pool = require('./pool');
+const csvParser = require('csv-parser');
+const fs = require('fs');
 
-// Path to the unified CSV file
-const unifiedFilePath = './db/unified.csv';
+const unifiedCSVPath = './db/unified.csv';
 
-// Normalize text to handle inconsistencies
-const normalizeText = (text) =>
-  typeof text === 'string'
-    ? text.trim().toLowerCase().replace(/_/g, ' ').replace(/\s+/g, ' ')
-    : '';
+const insertGroups = async (transactions, client) => {
+  console.log('Inserting groups...');
 
-// Function to insert unique groups
-const insertGroups = async (groups) => {
-  const client = await pool.connect();
+  const uniqueGroups = new Set(transactions.map((tx) => tx.groupName));
   const groupIdMap = new Map();
-  try {
-    await client.query('BEGIN');
 
-    for (const group of groups) {
-      const normalizedGroup = normalizeText(group); // Normalize group name
-      const res = await client.query(
-        `
-        INSERT INTO groups (name)
-        VALUES ($1)
-        ON CONFLICT (name) DO NOTHING
-        RETURNING id, name;
-        `,
-        [normalizedGroup]
-      );
-
-      if (res.rows.length > 0) {
-        groupIdMap.set(normalizedGroup, res.rows[0].id);
-        // console.log(
-        //   `Inserted group: "${normalizedGroup}" with ID: ${res.rows[0].id}`
-        // );
-      } else {
-        const existing = await client.query(
-          `SELECT id FROM groups WHERE name = $1`,
-          [normalizedGroup]
+  for (const group of uniqueGroups) {
+    if (group) {
+      try {
+        const result = await client.query(
+          'INSERT INTO groups (name) VALUES ($1) ON CONFLICT (name) DO NOTHING RETURNING id, name',
+          [group]
         );
-        if (existing.rows.length > 0) {
-          groupIdMap.set(normalizedGroup, existing.rows[0].id);
-          // console.log(
-          //   `Existing group: "${normalizedGroup}" with ID: ${existing.rows[0].id}`
-          // );
-        } else {
-          console.error(`Failed to find or create group: "${normalizedGroup}"`);
-        }
+
+        const groupId =
+          result.rows[0]?.id ||
+          (await client.query('SELECT id FROM groups WHERE name = $1', [group]))
+            .rows[0].id;
+
+        groupIdMap.set(group, groupId);
+      } catch (err) {
+        console.error(
+          `Error inserting or retrieving group "${group}":`,
+          err.message
+        );
       }
     }
-
-    // console.log('Final Group ID Map:', Array.from(groupIdMap.entries()));
-
-    // Ensure "ungrouped" is in the map
-    if (!groupIdMap.has('ungrouped')) {
-      const res = await client.query(
-        `SELECT id FROM groups WHERE name = 'ungrouped';`
-      );
-      if (res.rows.length > 0) {
-        groupIdMap.set('ungrouped', res.rows[0].id);
-        // console.log(
-        //   `Manually added "ungrouped" to Group ID Map with ID: ${res.rows[0].id}`
-        // );
-      } else {
-        console.error(`"Ungrouped" is missing from the database.`);
-      }
-    }
-
-    await client.query('COMMIT');
-  } catch (err) {
-    await client.query('ROLLBACK');
-    throw err;
-  } finally {
-    client.release();
   }
+
+  console.log('Groups successfully inserted or fetched:', [
+    ...groupIdMap.keys(),
+  ]);
   return groupIdMap;
 };
 
-// Function to insert unique categories
-const insertCategories = async (categories, groupIdMap) => {
-  const client = await pool.connect();
+const insertCategories = async (transactions, groupIdMap, client) => {
+  const uniqueCategories = new Set(
+    transactions.map((tx) => `${tx.category}:${tx.groupName}`)
+  );
+  console.log('Unique categories:', [...uniqueCategories]); // Log unique categories
+
   const categoryIdMap = new Map();
-  try {
-    await client.query('BEGIN');
 
-    for (const [categoryName, groupName] of categories.entries()) {
-      const normalizedGroupName = normalizeText(groupName);
-      const groupId = groupIdMap.get(normalizedGroupName) || null;
+  for (const categoryGroup of uniqueCategories) {
+    const [category, group] = categoryGroup.split(':');
+    console.log(`Processing category: "${category}" in group: "${group}"`); // Log each category and group
 
-      // console.log(
-      //   `Processing category: "${categoryName}" with groupName: "${normalizedGroupName}"`
-      // );
-      // console.log(`Resolved group ID for "${normalizedGroupName}":`, groupId);
-
-      if (!groupId) {
-        console.error(
-          `Group "${normalizedGroupName}" not found for category "${categoryName}". Skipping.`
+    if (category && group) {
+      try {
+        const result = await client.query(
+          `
+          INSERT INTO categories (name, "groupName")
+          VALUES ($1, $2)
+          ON CONFLICT (name, "groupName") DO NOTHING
+          RETURNING id;
+          `,
+          [category, group]
         );
-        continue; // Skip categories without valid group IDs
-      }
 
-      const res = await client.query(
-        `
-        INSERT INTO categories (name, "groupName")
-        VALUES ($1, $2)
-        ON CONFLICT (name) DO NOTHING
-        RETURNING id, name;
-        `,
-        [categoryName, normalizedGroupName]
-      );
+        const categoryId =
+          result.rows[0]?.id ||
+          (
+            await client.query(
+              'SELECT id FROM categories WHERE name = $1 AND "groupName" = $2',
+              [category, group]
+            )
+          ).rows[0]?.id;
 
-      if (res.rows.length > 0) {
-        categoryIdMap.set(categoryName, res.rows[0].id);
-        // console.log(
-        //   `Inserted category: "${categoryName}" with ID: ${res.rows[0].id}`
-        // );
-      } else {
-        const existing = await client.query(
-          `SELECT id FROM categories WHERE name = $1`,
-          [categoryName]
-        );
-        if (existing.rows.length > 0) {
-          categoryIdMap.set(categoryName, existing.rows[0].id);
-          // console.log(
-          //   `Existing category: "${categoryName}" with ID: ${existing.rows[0].id}`
-          // );
+        if (categoryId) {
+          categoryIdMap.set(category, categoryId);
+          console.log(
+            `Inserted or fetched category: "${category}" with ID: ${categoryId}`
+          );
         } else {
-          console.error(`Failed to resolve category: "${categoryName}"`);
+          console.warn(
+            `Failed to resolve category: "${category}" in group: "${group}"`
+          );
         }
+      } catch (err) {
+        console.error(
+          `Error inserting or retrieving category "${category}" in group "${group}":`,
+          err.message
+        );
       }
     }
-
-    await client.query('COMMIT');
-  } catch (err) {
-    await client.query('ROLLBACK');
-    throw err;
-  } finally {
-    client.release();
   }
+
+  console.log('Final category ID Map:', [...categoryIdMap.entries()]);
   return categoryIdMap;
 };
 
-// Function to insert transactions
-const insertTransactions = async (transactions, categoryIdMap, groupIdMap) => {
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
+const insertTags = async (transactions, client) => {
+  // Extract unique tags, ensuring no null or undefined values
+  const uniqueTags = new Set(
+    transactions.flatMap((tx) => (Array.isArray(tx.tags) ? tx.tags : []))
+  );
+  const tagIdMap = new Map();
 
-    for (const transaction of transactions) {
-      const groupId =
-        groupIdMap.get(normalizeText(transaction.groupName)) || null;
-      const categoryId =
-        categoryIdMap.get(normalizeText(transaction.category)) || null;
+  for (const tag of uniqueTags) {
+    if (tag) {
+      try {
+        // Insert tag or fetch its ID if it already exists
+        const result = await client.query(
+          `
+          INSERT INTO tags (name)
+          VALUES ($1)
+          ON CONFLICT (name) DO NOTHING
+          RETURNING id;
+          `,
+          [tag]
+        );
+
+        const tagId =
+          result.rows[0]?.id ||
+          (await client.query('SELECT id FROM tags WHERE name = $1', [tag]))
+            .rows[0].id;
+
+        tagIdMap.set(tag, tagId);
+      } catch (err) {
+        console.error(
+          `Error inserting or retrieving tag "${tag}":`,
+          err.message
+        );
+      }
+    }
+  }
+
+  console.log('Tags successfully inserted or fetched:', [...tagIdMap.keys()]);
+  return tagIdMap;
+};
+
+const insertTransactions = async (
+  transactions,
+  categoryIdMap,
+  groupIdMap,
+  tagIdMap,
+  client
+) => {
+  console.log('Inserting transactions...');
+  console.log(tagIdMap);
+
+  for (const transaction of transactions) {
+    try {
+      // Resolve category ID
+      const categoryId = categoryIdMap.get(transaction.category);
+      const groupId = groupIdMap.get(transaction.groupName);
 
       if (!categoryId || !groupId) {
-        console.error(`Skipping transaction due to missing IDs:`, transaction);
-        continue;
+        console.warn(
+          `Skipping transaction due to missing category/group: ${transaction.description}`
+        );
+        continue; // Skip transactions with missing mappings
       }
 
-      const amount = parseFloat(transaction.amount) || 0; // Ensure amount is numeric
-      // console.log(amount);
-      const quantity = parseFloat(transaction.quantity) || null;
-      const parentId = transaction.parent_id ? transaction.parent_id : null;
-
-      console.log('transaction time:', transaction);
-
+      // Insert transaction
       await client.query(
         `
-        INSERT INTO transactions (
-          id, parent_id, date, description, amount, category_id, group_id, 
-          is_split, account_name, notes, tags, source, quantity, link, location
-        )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15);
+        INSERT INTO transactions (id, date, description, amount, quantity, source, category_id, group_id, notes, link, location)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        ON CONFLICT (id) DO NOTHING;
         `,
         [
           transaction.id,
-          parentId,
           transaction.date,
           transaction.description,
-          amount,
+          transaction.amount,
+          transaction.quantity || 1, // Default quantity to 1 if undefined
+          transaction.source,
           categoryId,
           groupId,
-          transaction.is_split,
-          transaction.account_name,
           transaction.notes,
-          transaction.tags,
-          transaction.source,
-          quantity,
           transaction.link,
           transaction.location,
         ]
       );
+    } catch (err) {
+      console.error(
+        `Error inserting transaction "${transaction.description}":`,
+        err.message
+      );
     }
-
-    await client.query('COMMIT');
-  } catch (err) {
-    await client.query('ROLLBACK');
-    throw err;
-  } finally {
-    client.release();
   }
+
+  console.log('Transactions successfully inserted.');
+  console.log('Category ID Map:', [...categoryIdMap.entries()]);
+  console.log('Group ID Map:', [...groupIdMap.entries()]);
 };
 
-// Main function to process and populate the database
 const populateDatabase = async () => {
-  const groups = new Set();
-  const categories = new Map();
-  const transactions = [];
+  const client = await pool.connect();
 
   try {
-    // Parse unified CSV file
-    fs.createReadStream(unifiedFilePath)
+    await client.query('BEGIN');
+
+    // 1. Read CSV Data
+    console.log('Starting database population...');
+    const transactions = [];
+    fs.createReadStream(unifiedCSVPath)
       .pipe(csvParser())
       .on('data', (row) => {
-        const normalizedCategory = normalizeText(row.category);
-        const normalizedGroupName = normalizeText(row.groupName);
-
-        // Add groupName to the set of unique groups
-        groups.add(normalizedGroupName);
-
-        // Add category to the map
-        if (!categories.has(normalizedCategory)) {
-          categories.set(normalizedCategory, normalizedGroupName);
-        }
-
-        transactions.push(row); // Collect all transactions
-        // console.log(transactions[43]);
+        transactions.push({
+          id: row.id,
+          date: row.date,
+          description: row.description,
+          amount: parseFloat(row.amount),
+          quantity: row.quantity ? parseInt(row.quantity, 10) : null,
+          source: row.source,
+          category: row.category,
+          groupName: row.groupName,
+          tags: row.tags
+            ? row.tags.split(',').map((tag) => tag.trim().toLowerCase())
+            : [], // Normalize tags
+        });
       })
       .on('end', async () => {
-        // console.log('Extracted Groups:', Array.from(groups));
-        // console.log(
-        //   'Extracted Categories Map:',
-        //   Array.from(categories.entries())
-        // );
+        console.log(`Read ${transactions.length} transactions from CSV.`);
 
-        // Insert unique groups
-        const groupIdMap = await insertGroups(Array.from(groups));
+        // 2. Insert Data in Sequence
+        console.log('Inserting groups...');
+        const groupIdMap = await insertGroups(transactions, client);
 
-        // Insert unique categories
-        const categoryIdMap = await insertCategories(categories, groupIdMap);
+        console.log('Inserting categories...');
+        const categoryIdMap = await insertCategories(
+          transactions,
+          groupIdMap,
+          client
+        );
 
-        // Insert transactions
-        await insertTransactions(transactions, categoryIdMap, groupIdMap);
+        console.log('Inserting tags...');
+        const tagIdMap = await insertTags(transactions, client);
 
-        console.log('Database populated successfully!');
-      })
-      .on('error', (err) => {
-        console.error('Error reading unified CSV file:', err);
+        console.log('Inserting transactions...');
+        await insertTransactions(
+          transactions,
+          categoryIdMap,
+          groupIdMap,
+          tagIdMap,
+          client
+        );
+
+        await client.query('COMMIT');
       });
-  } catch (err) {
-    console.error('Error populating database:', err);
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error populating database:', error);
+  } finally {
+    client.release();
+    console.log('Database successfully populated.');
   }
 };
 
-// Run the script
 populateDatabase();

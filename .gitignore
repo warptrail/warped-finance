@@ -28,6 +28,7 @@ frontend/.cache/
 # Editor settings
 .vscode/*
 !.vscode/extensions.json
+eslint.config.mjs
 .idea/
 *.swp
 *.iml
