@@ -5,8 +5,10 @@ require('dotenv').config();
 // const { NODE_ENV } = require('./config');
 
 // Import Routers
-const transactionsRouter = require('./routes/transactions');
+const groupsRouter = require('./routes/groups');
 const categoriesRouter = require('./routes/categories');
+const tagsRouter = require('./routes/tags');
+const transactionsRouter = require('./routes/transactions');
 
 const app = express();
 const PORT = process.env.PORT || 5002;
@@ -22,8 +24,10 @@ app.get('/', (req, res) => {
 });
 
 // Routes
-app.use('/api/transactions', transactionsRouter);
+app.use('/api/groups', groupsRouter);
 app.use('/api/categories', categoriesRouter);
+app.use('/api/tags', tagsRouter);
+app.use('/api/transactions', transactionsRouter);
 
 // Start server
 app.listen(PORT, () => {

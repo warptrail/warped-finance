@@ -1,14 +1,15 @@
 const express = require('express');
 const router = express.Router();
 const {
-  getTransactionsWithTags,
   getAllTransactions,
-  updateTransactionCategory,
   getTransactionsByCategory,
   getTransactionsByFilters,
-  getTransactionsByTags,
-} = require('../db/queries');
+  updateTransactionCategory,
+  insertTestTransactions,
+  getMostRecentTransactions,
+} = require('../db/queries/q-transactions');
 
+const {} = require('../db/queries/q-groups');
 //* Get all transactions & transactions filtered by multiple criteria
 router.get('/', async (req, res) => {
   let transactions;
@@ -34,39 +35,6 @@ router.get('/', async (req, res) => {
   } catch (error) {
     console.error('Error fetching transactions:', error);
     res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-router.get('/tags-test', async (req, res) => {
-  const transactions = await getTransactionsWithTags();
-  res.json(transactions);
-});
-
-// Fetch Transactions with one or multiple tags
-router.get('/tags', async (req, res) => {
-  const { tags, mode } = req.query;
-
-  try {
-    // If no tags, return 400 error
-    if (!tags) {
-      return res.status(400).json({ error: 'Tags parameter is required' });
-    }
-
-    // Split the tags into an array
-    const tagsArray = tags.split(',').map((tag) => tag.trim().toLowerCase());
-
-    if (tagsArray.length === 0) {
-      return res.status(400).json({ error: 'Provide at least one tag' });
-    }
-
-    const isAndMode = mode === 'and'; // Toggle between AND and OR logic
-
-    const transactions = await getTransactionsByTags(tagsArray, isAndMode);
-
-    return res.json(transactions);
-  } catch (err) {
-    console.error('Error fetching transactions for category:', err);
-    res.status(500).json({ error: 'Failed to fetch transactions' });
   }
 });
 
@@ -101,6 +69,26 @@ router.put('/:id/category', async (req, res) => {
   } catch (error) {
     console.error('Error updating transaction:', error);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+//* Post pre-written test transactions
+router.post('/insert-test-transactions', async (req, res) => {
+  try {
+    const result = await insertTestTransactions();
+    res.status(201).json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+//* Get those most recent test transactions
+router.get('/recent-transactions', async (req, res) => {
+  try {
+    const transactions = await getMostRecentTransactions();
+    res.status(200).json(transactions);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 

@@ -12,6 +12,8 @@ CREATE TABLE groups (
     id SERIAL PRIMARY KEY,
     name TEXT NOT NULL UNIQUE
 );
+-- Insert Default Category "ungrouped"
+INSERT INTO groups (name) VALUES ('ungrouped') ON CONFLICT DO NOTHING;
 
 -- Step 2: Create Categories Table
 CREATE TABLE categories (
@@ -19,6 +21,9 @@ CREATE TABLE categories (
     name TEXT NOT NULL UNIQUE,
     "groupName" TEXT NOT NULL REFERENCES groups(name) ON DELETE SET NULL
 );
+
+-- Insert Default Category "uncategorized" in Group "ungrouped"
+INSERT INTO categories (name, "groupName") VALUES ('uncategorized', 'ungrouped') ON CONFLICT DO NOTHING;
 
 -- Step 3: Create Transactions Table
 CREATE TABLE transactions (
@@ -55,34 +60,35 @@ CREATE TABLE transaction_tags (
 ALTER TABLE categories ADD CONSTRAINT unique_category_group UNIQUE (name, "groupName");
 
 
--- Step 7: Insert Default Group "ungrouped"
--- INSERT INTO groups (id, name) VALUES (1, 'ungrouped') ON CONFLICT DO NOTHING;
 
--- Step 8: Insert Default Category "uncategorized" in Group "ungrouped"
--- INSERT INTO categories (id, name, "groupName") VALUES (1, 'uncategorized', 'ungrouped') ON CONFLICT DO NOTHING;
+
+
+
 
 -- Step 5: Create Trigger Function
-CREATE OR REPLACE FUNCTION set_default_category_group()
+-- Function to set default category_id and group_id
+CREATE OR REPLACE FUNCTION set_default_category_and_group()
 RETURNS TRIGGER AS $$
 BEGIN
-    -- Set default category_id to 'uncategorized' in 'ungrouped' if not provided
+    -- If category_id is not provided, set it to the 'uncategorized' category
     IF NEW.category_id IS NULL THEN
-        NEW.category_id := (SELECT id FROM categories WHERE name = 'uncategorized' AND "groupName" = 'ungrouped');
+        SELECT id INTO NEW.category_id
+        FROM categories
+        WHERE name = 'uncategorized';
     END IF;
 
-    -- Set default group_id based on the category_id if not provided
-    IF NEW.group_id IS NULL THEN
-        NEW.group_id := (SELECT g.id FROM groups g
-            JOIN categories c ON g.name = c."groupName"
-            WHERE c.id = NEW.category_id);
-    END IF;
+    -- Set group_id based on the category's group
+    SELECT g.id INTO NEW.group_id
+    FROM groups g
+    JOIN categories c ON g.name = c."groupName"
+    WHERE c.id = NEW.category_id;
 
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
--- Step 6: Attach Trigger to Transactions Table
-CREATE TRIGGER set_defaults_on_insert
+-- Trigger to call the function before insert on transactions
+CREATE TRIGGER set_defaults_on_transactions
 BEFORE INSERT ON transactions
 FOR EACH ROW
-EXECUTE FUNCTION set_default_category_group();
+EXECUTE FUNCTION set_default_category_and_group();

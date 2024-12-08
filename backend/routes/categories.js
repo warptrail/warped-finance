@@ -1,6 +1,11 @@
 const express = require('express');
 const router = express.Router();
-const { getAllCategories, updateCategoryName } = require('../db/queries');
+const {
+  getAllCategories,
+  getCategoryByName,
+  insertCategory,
+  updateCategoryName,
+} = require('../db/queries/q-categories');
 
 // Get all categories
 router.get('/', async (req, res) => {
@@ -24,11 +29,9 @@ router.put('/update/:currentName', async (req, res) => {
     }
 
     if (newName === currentName) {
-      return res
-        .status(400)
-        .json({
-          error: 'New category name cannot be identical to old category name',
-        });
+      return res.status(400).json({
+        error: 'New category name cannot be identical to old category name',
+      });
     }
 
     const result = await updateCategoryName(currentName, newName);

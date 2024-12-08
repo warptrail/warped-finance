@@ -135,6 +135,46 @@ const insertTags = async (transactions, client) => {
   return tagIdMap;
 };
 
+const insertTransactionTags = async (transactions, tagIdMap, client) => {
+  try {
+    // Create an array of all transaction-tag pairs
+    const transactionTagPairs = [];
+
+    transactions.forEach((transaction) => {
+      if (transaction.tags && transaction.tags.length > 0) {
+        transaction.tags.forEach((tag) => {
+          const tagId = tagIdMap.get(tag);
+          if (tagId) {
+            transactionTagPairs.push([transaction.id, tagId]);
+          } else {
+            console.warn(`Tag ${tag} not found in tagIdMap`);
+          }
+        });
+      }
+    });
+
+    if (transactionTagPairs.length > 0) {
+      // Batch insert all transaction-tag pairs
+      const queryText = `
+      INSERT INTO transaction_tags (transaction_id, tag_id)
+        VALUES ${transactionTagPairs
+          .map((_, i) => `($${i * 2 + 1}, $${i * 2 + 2})`)
+          .join(', ')}
+        ON CONFLICT DO NOTHING;
+      `;
+
+      const queryValues = transactionTagPairs.flat();
+      await client.query(queryText, queryValues);
+
+      console.log('Transaction tags successfully inserted.');
+    } else {
+      console.log('No transaction-tag pairs to insert');
+    }
+  } catch (err) {
+    console.err('Error inserting transaction_tags:', err);
+  }
+};
+
 const insertTransactions = async (
   transactions,
   categoryIdMap,
@@ -243,6 +283,9 @@ const populateDatabase = async () => {
           tagIdMap,
           client
         );
+
+        console.log('Inserting transaction tags...');
+        await insertTransactionTags(transactions, tagIdMap, client);
 
         await client.query('COMMIT');
       });
