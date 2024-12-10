@@ -106,6 +106,53 @@ const getTransactionsByFilters = async (filters) => {
   }
 };
 
+//* Get a transaction by its id
+const getTransactionById = async (id) => {
+  const query = `
+    SELECT
+      t.id,
+      t.date,
+      t.description,
+      t.amount,
+      c.name AS category_name,
+      g.name as group_name,
+      t.notes,
+      array_agg(tt.name) AS tags
+    FROM transactions t
+    LEFT JOIN categories c ON t.category_id = c.id
+    LEFT JOIN groups g ON t.group_id = g.id
+    LEFT JOIN transaction_tags ttg ON t.id = ttg.transaction_id
+    LEFT JOIN tags tt ON ttg.tag_id = tt.id
+    WHERE t.id = $1
+    GROUP BY t.id, c.name, g.name
+  `;
+
+  const result = await pool.query(query, [id]);
+
+  if (result.rows.length === 0) {
+    throw new Error(`Transaction with ID "${id} not found`);
+  }
+
+  return result.rows[0];
+};
+
+//* Check that a transaction exists
+const checkTransactionExists = async (id) => {
+  const client = await pool.connect();
+  try {
+    const result = await client.query(
+      'SELECT id FROM transactions WHERE id = $1',
+      [id]
+    );
+    return result.rows.length > 0; // Returns true if transaction exists
+  } catch (err) {
+    console.error('Error checking if transaction exists:', err.message);
+    throw err;
+  } finally {
+    client.release();
+  }
+};
+
 //* Update a transaction's category
 const updateTransactionCategory = async (transactionId, categoryId) => {
   const result = await pool.query(
@@ -120,7 +167,8 @@ const updateTransactionCategory = async (transactionId, categoryId) => {
   return result.rows[0];
 };
 
-insertTestTransactions = async () => {
+//* Insert test transactions
+const insertTestTransactions = async () => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -187,6 +235,7 @@ insertTestTransactions = async () => {
   }
 };
 
+//* Select test transactions
 const getMostRecentTransactions = async () => {
   const client = await pool.connect();
 
@@ -222,11 +271,193 @@ const getMostRecentTransactions = async () => {
   }
 };
 
+//* Split transactions
+const splitTransaction = async (parentId, splits) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // Validate Parent Transaction
+    const parentResult = await client.query(
+      `
+    SELECT id, amount, date, is_split FROM transactions WHERE id = $1
+    `,
+      [parentId]
+    );
+    if (parentResult.rows.length === 0) {
+      throw new Error(`Parent transaction with ID ${parentId} not found`);
+    }
+    const parentTransaction = parentResult.rows[0];
+    if (parentTransaction.is_split) {
+      throw new Error(`Transaction ${parentId} is already split`);
+    }
+
+    // Validate split amounts
+    const totalSplitAmount = splits.reduce(
+      (sum, split) => sum + split.amount,
+      0
+    );
+
+    if (totalSplitAmount !== parentTransaction.amount) {
+      throw new Error(`Split amounts must sum to ${parentTransaction.amount}`);
+    }
+
+    // Generate child transactions
+    const childTransactions = splits.map((split, index) => ({
+      id: `${parentId}-${index + 1}`,
+      parent_id: parentId,
+      date: parentTransaction.date,
+      description: parentTransaction.description,
+      ...split,
+    }));
+
+    // Insert child transactions
+    for (const child of childTransactions) {
+      await client.query(
+        `
+        INSERT INTO transactions (id, parent_id, date, description, amount, category_id, notes, is_split)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, FALSE)
+        `,
+        [
+          child.id,
+          child.parent_id,
+          child.date,
+          child.description,
+          child.amount,
+          child.category_id || 1, // Default to 'uncategorized' if no category specified
+          child.notes || '',
+        ]
+      );
+
+      // Insert tags (if any)
+      if (child.tags) {
+        for (const tag of child.tags) {
+          await client.query(
+            `
+            INSERT INTO transaction_tags (transaction_id, tag_id)
+            SELECT $1, id FROM tags WHERE name = $2 ON CONFLICT DO NOTHING
+            `,
+            [child.id, tag]
+          );
+        }
+      }
+    }
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+};
+
+//* Insert a manual transaction
+const insertTransaction = async (transaction) => {
+  const {
+    id,
+    date,
+    description,
+    amount,
+    category_id = 1, // Default to "uncategorized"
+    notes = '',
+    tags = [],
+    source = 'manual', // Default to "manual" for user-added transactions
+    quantity = 1,
+    link = null,
+    location = null,
+  } = transaction;
+
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    // Insert transaction into the transactions table
+    // Insert transaction into the transactions table
+    const transactionResult = await client.query(
+      `
+          INSERT INTO transactions (id, date, description, amount, category_id, notes, source, quantity, link, location)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+          RETURNING id;
+          `,
+      [
+        id,
+        date,
+        description,
+        amount,
+        category_id,
+        notes,
+        source,
+        quantity,
+        link,
+        location,
+      ]
+    );
+
+    // Get the ID of the inserted transaction
+    const insertedTransactionId = transactionResult.rows[0].id;
+
+    // Insert tags into transaction_tags table, if provided
+    for (const tag of tags) {
+      await client.query(
+        `
+          INSERT INTO transaction_tags (transaction_id, tag_id)
+          SELECT $1, id FROM tags WHERE name = $2 ON CONFLICT DO NOTHING;
+          `,
+        [insertedTransactionId, tag]
+      );
+    }
+
+    await client.query('COMMIT');
+    return insertedTransactionId;
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+};
+
+//* Delete a transaction
+const deleteTransaction = async (transactionId) => {
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    // Delete the transaction
+    const result = await client.query(
+      `
+      DELETE FROM transactions WHERE id = $1 RETURNING id, description
+      `,
+      [transactionId]
+    );
+
+    if (result.rows.length === 0) {
+      throw new Error(`Transaction with ID ${transactionId} does not exist`);
+    }
+
+    await client.query('COMMIT');
+    console.log(`Transaction ${transactionId} deleted successfully`);
+    return result.rows[0];
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Error deleting transaction:', err.message);
+    throw err;
+  } finally {
+    client.release();
+  }
+};
+
 module.exports = {
   getAllTransactions,
   getTransactionsByCategory,
   getTransactionsByFilters,
+  getTransactionById,
+  checkTransactionExists,
   updateTransactionCategory,
   insertTestTransactions,
   getMostRecentTransactions,
+  splitTransaction,
+  insertTransaction,
+  deleteTransaction,
 };

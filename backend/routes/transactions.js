@@ -4,12 +4,18 @@ const {
   getAllTransactions,
   getTransactionsByCategory,
   getTransactionsByFilters,
+  getTransactionById,
+  checkTransactionExists,
   updateTransactionCategory,
   insertTestTransactions,
   getMostRecentTransactions,
+  insertTransaction,
+  splitTransaction,
+  deleteTransaction,
 } = require('../db/queries/q-transactions');
 
-const {} = require('../db/queries/q-groups');
+const isValidTransactionId = require('../helpers/isValidTransactionId');
+
 //* Get all transactions & transactions filtered by multiple criteria
 router.get('/', async (req, res) => {
   let transactions;
@@ -88,6 +94,112 @@ router.get('/recent-transactions', async (req, res) => {
     const transactions = await getMostRecentTransactions();
     res.status(200).json(transactions);
   } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+//* Delete those recent test transactions
+
+//* Insert a transaction manually
+router.post('/new', async (req, res) => {
+  const { id, date, description, amount, category_id, tags } = req.body; // Expect the transaction data in the request body
+  // Validate the request body (basic validation)
+  if (!id || !date || !description || !amount) {
+    return res.status(400).json({
+      error: 'Missing required fields: id, date, description, or amount',
+    });
+  }
+
+  if (!isValidTransactionId(id)) {
+    return res.status(400).json({ error: 'Invalid or missing transaction ID' });
+  }
+  try {
+    // Check if the ID already exists
+    const exists = await checkTransactionExists(id);
+    if (exists) {
+      return res
+        .status(409)
+        .json({ error: `Transaction with ID ${id} already exists` });
+    }
+    // Insert the transaction
+    const insertedTransactionId = await insertTransaction({
+      id,
+      date,
+      description,
+      amount,
+      category_id,
+      tags,
+    });
+
+    res.status(201).json({
+      message: 'Transaction added successfully',
+      id: insertedTransactionId,
+    });
+  } catch (err) {
+    console.error('Error inserting transaction:', err.message);
+    res.status(500).json({ error: 'Failed to insert transaction' });
+  }
+});
+
+//* Get a specific transaction
+router.get('/:id', async (req, res) => {
+  const { id } = req.params;
+
+  // Validate transaction ID format
+  if (!isValidTransactionId(id)) {
+    return res.status(400).json({ error: 'Invalid transaction ID format' });
+  }
+
+  try {
+    // Fetch the transaction
+    const transaction = await getTransactionById(id);
+    res.status(200).json(transaction);
+  } catch (err) {
+    console.error('Error fetching transaction', err.message);
+    res.status(404).json({ error: err.message });
+  }
+});
+
+//* Delete a specific transaction
+router.delete('/:id', async (req, res) => {
+  const { id } = req.params;
+
+  if (!isValidTransactionId(id)) {
+    return res.status(400).json({ error: 'Invalid transaction ID format' });
+  }
+
+  try {
+    const deletedTransaction = await deleteTransaction(id);
+    res.status(200).json({
+      message: `Transaction ${id} deleted successfully`,
+      transaction: deleteTransaction,
+    });
+  } catch (err) {
+    if (err.message.includes('does not exist')) {
+      res.status(404).json({ error: err.message });
+    } else {
+      res.status(500).json({ error: 'Failed to delete transaction' });
+    }
+  }
+});
+
+// * Splitting Transactions
+router.post('/split/:id', async (req, res) => {
+  const { id } = req.params; // Parent transaction ID
+  const { splits } = req.body; // Array of splits from the request body
+
+  try {
+    if (!splits || !Array.isArray(splits) || splits.length === 0) {
+      return res
+        .status(400)
+        .json({ error: 'Invalid or missing splits data', splits });
+    }
+
+    // Call the function to split the transaction
+    const result = await splitTransaction(id, splits);
+    return res.status(200).json(result);
+  } catch (err) {
+    console.error('Error splitting transaction:', err.message);
     res.status(500).json({ error: err.message });
   }
 });

@@ -49,6 +49,52 @@ CREATE TABLE tags (
     name TEXT NOT NULL UNIQUE
 );
 
+-- Insert Commonly Used Tags
+-- Insert Commonly Used Tags
+INSERT INTO tags (name)
+VALUES
+    ('recurring'),
+    ('one-time'),
+    ('impulse'),
+    ('essential'),
+    ('non-essential'),
+    ('shared expense'),
+    ('reimbursement'),
+    ('gift'),
+    ('charity'),
+    ('budgeted'),
+    ('over-budget'),
+    ('savings'),
+    ('debt payment'),
+    ('tax deductible'),
+    ('personal development'),
+    ('emergency'),
+    ('work expense'),
+    ('travel'),
+    ('frequent'),
+    ('rare'),
+    ('habit'),
+    ('treat yourself'),
+    ('upfront cost'),
+    ('long-term investment'),
+    ('lifestyle upgrade'),
+    ('happy'),
+    ('regret'),
+    ('stress purchase'),
+    ('fomo'),
+    ('celebration'),
+    ('holiday'),
+    ('seasonal'),
+    ('event'),
+    ('home'),
+    ('tech'),
+    ('decadence'),
+    ('monsters'),
+    ('diy'),
+    ('impulse joy')
+ON CONFLICT (name) DO NOTHING;
+
+
 -- Step 5: Create Join Table for Transactions and Tags
 CREATE TABLE transaction_tags (
     transaction_id TEXT REFERENCES transactions(id) ON DELETE CASCADE,
@@ -59,13 +105,17 @@ CREATE TABLE transaction_tags (
 -- Step 6: Update the Categories Table
 ALTER TABLE categories ADD CONSTRAINT unique_category_group UNIQUE (name, "groupName");
 
+-- Add check constraint to prevent infinite splits
+ALTER TABLE transactions
+    ADD CONSTRAINT check_no_infinite_splits CHECK (
+        NOT (is_split = TRUE AND parent_id IS NOT NULL)
+    );
+
+-- Add index for parent-child lookups
+CREATE INDEX idx_transactions_parent_id ON transactions (parent_id);
 
 
-
-
-
-
--- Step 5: Create Trigger Function
+-- Step 7: Create Trigger Function
 -- Function to set default category_id and group_id
 CREATE OR REPLACE FUNCTION set_default_category_and_group()
 RETURNS TRIGGER AS $$

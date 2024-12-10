@@ -1,5 +1,5 @@
 const pool = require('../pool');
-
+//* Get all transactions that have any tags
 const getTransactionsWithTags = async () => {
   const result = await pool.query(
     `
@@ -24,7 +24,7 @@ LIMIT 10;
   return result.rows;
 };
 
-// Get transactions by multiple tags either and or or
+//* Get transactions by multiple tags either and or or
 const getTransactionsByTags = async (tagsArray, mode = 'or') => {
   const client = await pool.connect();
 
@@ -74,4 +74,34 @@ const getTransactionsByTags = async (tagsArray, mode = 'or') => {
   }
 };
 
-module.exports = { getTransactionsWithTags, getTransactionsByTags };
+// Create a new tag
+const createTag = async (tagName) => {
+  if (!tagName || typeof tagName !== 'string' || tagName.trim() === '') {
+    throw new Error('Invalid tag name');
+  }
+
+  const client = await pool.connect();
+  try {
+    const result = await client.query(
+      `
+      INSERT INTO tags (name)
+      VALUES ($1)
+      ON CONFLICT (name) DO NOTHING
+      RETURNING id, name;
+      `,
+      [tagName.trim()]
+    );
+
+    if (result.rows.length === 0) {
+      throw new Error(`Tag "${tagName}" already exists`);
+    }
+
+    return result.rows[0]; // Return the new tag
+  } catch (err) {
+    throw err;
+  } finally {
+    client.release();
+  }
+};
+
+module.exports = { getTransactionsWithTags, getTransactionsByTags, createTag };
