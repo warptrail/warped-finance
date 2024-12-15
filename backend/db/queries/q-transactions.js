@@ -2,7 +2,26 @@ const pool = require('../pool');
 
 //* Fetch all transactions
 const getAllTransactions = async () => {
-  const result = await pool.query('SELECT * FROM transactions');
+  const result = await pool.query(
+    `
+    SELECT 
+          t.id, 
+          t.date, 
+          t.description, 
+          t.amount, 
+          c.name AS category_name, 
+          g.name AS group_name, 
+          t.is_split,
+          COALESCE(json_agg(DISTINCT tg.name) FILTER (WHERE tg.name IS NOT NULL), '[]') AS tags
+      FROM transactions t
+      LEFT JOIN categories c ON t.category_id = c.id
+      LEFT JOIN groups g ON c."groupName" = g.name
+      LEFT JOIN transaction_tags tt ON t.id = tt.transaction_id
+      LEFT JOIN tags tg ON tt.tag_id = tg.id
+      GROUP BY t.id, t.date, t.description, t.amount, c.name, g.name
+      ORDER BY t.id DESC
+    `
+  );
   return result.rows;
 };
 
@@ -116,6 +135,7 @@ const getTransactionById = async (id) => {
       t.amount,
       c.name AS category_name,
       g.name as group_name,
+      t.is_split,
       t.notes,
       array_agg(tt.name) AS tags
     FROM transactions t
@@ -272,78 +292,184 @@ const getMostRecentTransactions = async () => {
 };
 
 //* Split transactions
-const splitTransaction = async (parentId, splits) => {
+const splitTransaction = async (transactionId, childTransactions) => {
   const client = await pool.connect();
   try {
+    // Begin transaction
     await client.query('BEGIN');
 
-    // Validate Parent Transaction
-    const parentResult = await client.query(
-      `
-    SELECT id, amount, date, is_split FROM transactions WHERE id = $1
-    `,
-      [parentId]
+    // Fetch the parent transaction
+    const parentTransactionResult = await client.query(
+      'SELECT * FROM transactions WHERE id = $1',
+      [transactionId]
     );
-    if (parentResult.rows.length === 0) {
-      throw new Error(`Parent transaction with ID ${parentId} not found`);
-    }
-    const parentTransaction = parentResult.rows[0];
-    if (parentTransaction.is_split) {
-      throw new Error(`Transaction ${parentId} is already split`);
+
+    // Throw an error if the parent transaction does not exist
+    if (parentTransactionResult.rows.length === 0) {
+      throw new Error(`PARENT transaction with ID ${transactionId} not found`);
     }
 
-    // Validate split amounts
-    const totalSplitAmount = splits.reduce(
-      (sum, split) => sum + split.amount,
+    const parentTransaction = parentTransactionResult.rows[0];
+
+    // Make sure the transaction is not already split
+    if (parentTransaction.is_split) {
+      throw new Error(`Transaction with id ${transactionId} is already split`);
+    }
+
+    // Calculate the total amount of child transactions to ensure they match the parent
+    const totalChildAmount = childTransactions.reduce(
+      (sum, child) => sum + child.amount,
       0
     );
-
-    if (totalSplitAmount !== parentTransaction.amount) {
-      throw new Error(`Split amounts must sum to ${parentTransaction.amount}`);
+    if (totalChildAmount !== parseFloat(parentTransaction.amount, 10)) {
+      throw new Error(
+        'Child transactions amounts do not sum up to the parent transaction amount'
+      );
     }
 
-    // Generate child transactions
-    const childTransactions = splits.map((split, index) => ({
-      id: `${parentId}-${index + 1}`,
-      parent_id: parentId,
-      date: parentTransaction.date,
-      description: parentTransaction.description,
-      ...split,
-    }));
+    // Mark the parent transaction as split
+    await client.query(
+      'UPDATE transactions SET is_split = TRUE WHERE id = $1',
+      [transactionId]
+    );
 
-    // Insert child transactions
-    for (const child of childTransactions) {
-      await client.query(
-        `
-        INSERT INTO transactions (id, parent_id, date, description, amount, category_id, notes, is_split)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, FALSE)
-        `,
-        [
-          child.id,
-          child.parent_id,
-          child.date,
-          child.description,
-          child.amount,
-          child.category_id || 1, // Default to 'uncategorized' if no category specified
-          child.notes || '',
-        ]
+    // update the category to the default
+    await client.query(
+      'UPDATE transactions SET category_id = 1 WHERE id = $1',
+      [transactionId]
+    );
+
+    // Loop through each child transaction and insert it into the database
+    for (let i = 0; i < childTransactions.length; i++) {
+      const child = childTransactions[i];
+
+      // Fetch the category_id based on the category name provided
+      const categoryResult = await client.query(
+        'SELECT id FROM categories WHERE name = $1',
+        [child.category]
       );
 
-      // Insert tags (if any)
-      if (child.tags) {
-        for (const tag of child.tags) {
-          await client.query(
-            `
-            INSERT INTO transaction_tags (transaction_id, tag_id)
-            SELECT $1, id FROM tags WHERE name = $2 ON CONFLICT DO NOTHING
-            `,
-            [child.id, tag]
-          );
-        }
+      // check if this category in the request body exists
+      if (categoryResult.rows.length === 0) {
+        throw new Error(`Category "${child.category}" does not exist`);
       }
+
+      // get the category id
+      const categoryId = categoryResult.rows[0].id;
+
+      // Generate a unique ID for the child transaction
+      const childId = `${transactionId}-${i + 1}`;
+      await client.query(
+        `INSERT INTO transactions (id, date, description, amount, category_id, group_id, parent_id, is_split, source)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, FALSE, $8)`,
+        [
+          childId,
+          parentTransaction.date, // Use the parent's date
+          parentTransaction.description, // Use the parent's description
+          child.amount, // Amount specific to the child transaction
+          categoryId, // Use the resolved category ID
+          child.group_id || parentTransaction.group_id, // Inherit group if not provided
+          transactionId, // Set the parent ID
+          parentTransaction.source,
+        ]
+      );
     }
+
+    // Commit the transaction if all operations are successful
+    await client.query('COMMIT');
+
+    //Return details of the updated parent and inserted child transactions
+    return {
+      parentTransaction: {
+        id: transactionId,
+        ...parentTransaction,
+        is_split: true,
+        categoryId: 'returned to default',
+      },
+      childTransactions: childTransactions.map((child, index) => ({
+        id: `${transactionId}-${index + 1}`,
+        ...child,
+      })),
+    };
   } catch (err) {
     await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+};
+
+//* Delete Split transactions
+const deleteSplitTransactions = async (transactionId) => {
+  const client = await pool.connect();
+
+  try {
+    const parentTransactionResult = await client.query(
+      'SELECT is_split FROM transactions WHERE id = $1',
+      [transactionId]
+    );
+
+    // Check if the transaction exists
+    if (parentTransactionResult.rows.length === 0) {
+      throw new Error(`Transaction with ID ${transactionId} not found`);
+    }
+
+    // Deconstruct data
+    const parentTransaction = parentTransactionResult.rows[0];
+
+    // Check if the transaction is split
+    const isSplit = parentTransaction.is_split;
+    if (!isSplit) {
+      throw new Error(
+        `Transaction with ID ${transactionId} is not marked as split`
+      );
+    }
+
+    // Count the child transactions
+    const childCountResult = await client.query(
+      'SELECT COUNT(*) FROM transactions WHERE parent_id = $1',
+      [transactionId]
+    );
+    const childCount = parseInt(childCountResult.rows[0].count, 10);
+
+    // Find and delete child transactions
+    await client.query('DELETE FROM transactions WHERE parent_id = $1', [
+      transactionId,
+    ]);
+
+    // Update the parent transaction to mark it no longer split
+    await client.query(
+      'UPDATE transactions SET is_split = FALSE WHERE id = $1',
+      [transactionId]
+    );
+
+    // Commit transaction
+    await client.query('COMMIT');
+
+    const singularOrPlural = (x, option1, option2) => {
+      if (x === 1) {
+        return option1;
+      } else {
+        return option2;
+      }
+    };
+    console.log(
+      `Successfully deleted ${childCount} split${singularOrPlural(
+        childCount,
+        '',
+        's'
+      )} for transaction ID ${transactionId}`
+    );
+    return {
+      message: `Successfully deleted ${childCount} split${singularOrPlural(
+        childCount,
+        '',
+        's'
+      )} for transaction ID ${transactionId}`,
+    };
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Error deleting splits:', err.message);
     throw err;
   } finally {
     client.release();
@@ -448,6 +574,38 @@ const deleteTransaction = async (transactionId) => {
   }
 };
 
+//* Get the most recent 20 transactions
+const getLastTwentyTransactions = async () => {
+  const client = await pool.connect();
+  try {
+    const result = await client.query(`
+  SELECT 
+          t.id, 
+          t.date, 
+          t.description, 
+          t.amount, 
+          c.name AS category_name, 
+          g.name AS group_name, 
+          t.is_split,
+          COALESCE(json_agg(DISTINCT tg.name) FILTER (WHERE tg.name IS NOT NULL), '[]') AS tags
+      FROM transactions t
+      LEFT JOIN categories c ON t.category_id = c.id
+      LEFT JOIN groups g ON c."groupName" = g.name
+      LEFT JOIN transaction_tags tt ON t.id = tt.transaction_id
+      LEFT JOIN tags tg ON tt.tag_id = tg.id
+      GROUP BY t.id, t.date, t.description, t.amount, c.name, g.name
+      ORDER BY t.date DESC
+      LIMIT 20;
+      `);
+
+    return result.rows;
+  } catch (err) {
+    throw err;
+  } finally {
+    client.release();
+  }
+};
+
 module.exports = {
   getAllTransactions,
   getTransactionsByCategory,
@@ -458,6 +616,8 @@ module.exports = {
   insertTestTransactions,
   getMostRecentTransactions,
   splitTransaction,
+  deleteSplitTransactions,
   insertTransaction,
   deleteTransaction,
+  getLastTwentyTransactions,
 };

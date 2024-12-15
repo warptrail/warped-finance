@@ -31,6 +31,7 @@ CREATE TABLE transactions (
     parent_id TEXT REFERENCES transactions(id) ON DELETE CASCADE,
     date DATE NOT NULL,
     description TEXT NOT NULL,
+    original_description TEXT,
     amount NUMERIC NOT NULL,
     category_id INTEGER REFERENCES categories(id) ON DELETE SET DEFAULT,
     group_id INTEGER REFERENCES groups(id) ON DELETE SET DEFAULT,

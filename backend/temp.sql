@@ -136,3 +136,10 @@ EXCEPTION WHEN OTHERS THEN
     GET STACKED DIAGNOSTICS error_message = MESSAGE_TEXT;
     RAISE NOTICE 'Error occurred: %', error_message;
 END $$;
+
+-- See all the original descriptions from Mint transactions
+SELECT id, date, original_description
+FROM transactions
+WHERE source = 'Mint'
+ORDER BY date DESC;
+

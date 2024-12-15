@@ -2,6 +2,9 @@ import './app.css';
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 
+// Import Components
+import TransactionsTable from './components/transaction-table';
+
 const App = () => {
   const [message, setMessage] = useState('');
 
@@ -20,6 +23,7 @@ const App = () => {
     <div>
       <h1>Warped Finance Frontend</h1>
       <p>Message from backend: {message}</p>
+      <TransactionsTable />
     </div>
   );
 };

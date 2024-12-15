@@ -1,0 +1,63 @@
+/* TransactionsTable.module.css */
+.table-container {
+  margin: 20px auto;
+  padding: 10px;
+  max-width: 90%;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  /* background-color: #f9f9f9; */
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.table-container table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+}
+
+.table-container th,
+.table-container td {
+  text-align: left;
+  padding: 12px;
+  border-bottom: 1px solid #ddd;
+}
+
+.table-container th {
+  background-color: #8d9893;
+  font-weight: bold;
+  color: #ddd;
+}
+
+.table-container tr:hover {
+  background-color: #f1f1f1;
+}
+
+.table-container .pagination {
+  margin-top: 10px;
+  text-align: center;
+}
+
+.table-container .pagination button {
+  margin: 0 5px;
+  padding: 5px 10px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.table-container .pagination button:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.table-container .pagination button:hover:not(:disabled) {
+  background-color: #0056b3;
+}
+
+.table-container select {
+  margin: 10px 0;
+  padding: 5px;
+  font-size: 16px;
+}

@@ -9,9 +9,11 @@ const {
   updateTransactionCategory,
   insertTestTransactions,
   getMostRecentTransactions,
-  insertTransaction,
   splitTransaction,
+  deleteSplitTransactions,
+  insertTransaction,
   deleteTransaction,
+  getLastTwentyTransactions,
 } = require('../db/queries/q-transactions');
 
 const isValidTransactionId = require('../helpers/isValidTransactionId');
@@ -142,7 +144,7 @@ router.post('/new', async (req, res) => {
 });
 
 //* Get a specific transaction
-router.get('/:id', async (req, res) => {
+router.get('/id/:id', async (req, res) => {
   const { id } = req.params;
 
   // Validate transaction ID format
@@ -160,6 +162,17 @@ router.get('/:id', async (req, res) => {
   }
 });
 
+//* Get last 20 transactions
+router.get('/last-20', async (req, res) => {
+  try {
+    const lastTwentyTransactions = await getLastTwentyTransactions();
+    return res.status(200).json(lastTwentyTransactions);
+  } catch (err) {
+    console.error('Error fetching transaction', err.message);
+    res.status(500).json({ error: err });
+  }
+});
+
 //* Delete a specific transaction
 router.delete('/:id', async (req, res) => {
   const { id } = req.params;
@@ -172,7 +185,7 @@ router.delete('/:id', async (req, res) => {
     const deletedTransaction = await deleteTransaction(id);
     res.status(200).json({
       message: `Transaction ${id} deleted successfully`,
-      transaction: deleteTransaction,
+      transaction: deletedTransaction,
     });
   } catch (err) {
     if (err.message.includes('does not exist')) {
@@ -200,6 +213,27 @@ router.post('/split/:id', async (req, res) => {
     return res.status(200).json(result);
   } catch (err) {
     console.error('Error splitting transaction:', err.message);
+    if (err.message.includes('Split amounts must sum to')) {
+      return res.status(400).json({ error: err.message });
+    }
+    res.status(500).json({ error: err.message });
+  }
+});
+
+//* DELETE endpoint for deleting the splits for a specific transaction
+router.delete('/id/:id/splits', async (req, res) => {
+  const { id } = req.params;
+  try {
+    // call the deleteSplits function
+    const result = await deleteSplitTransactions(id);
+
+    // Return the success message
+    res.json(result);
+  } catch (err) {
+    console.error(
+      `Error deleting splits for transaction ID ${id}:`,
+      err.message
+    );
     res.status(500).json({ error: err.message });
   }
 });

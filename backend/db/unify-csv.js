@@ -15,6 +15,7 @@ const unifiedHeaders = [
   'parent_id',
   'date',
   'description',
+  'original_description',
   'amount',
   'category',
   'groupName',
@@ -60,6 +61,7 @@ const processMintFile = (filePath) =>
           parent_id: null,
           date: new Date(row.Date),
           description: normalizeText(row.Description),
+          original_description: row['Original Description'] || null,
           amount,
           category: normalizeText(row.Category),
           groupName:
@@ -105,13 +107,14 @@ const processEveryDollarFiles = () =>
             parent_id: null,
             date: new Date(row.date),
             description: normalizeText(row.merchant),
+            original_description: null, // EveryDollar does not have this data
             amount: parseFloat(row.amount),
             category: normalizeText(row.item),
             groupName: normalizeText(row.group),
             is_split: false,
             account_name: null,
-            notes: null,
-            tags: [],
+            notes: null, // EveryDollar does not have this data
+            tags: [], // EveryDollar does not have this data
             source: 'EveryDollar',
             quantity: null,
             link: null,

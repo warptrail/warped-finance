@@ -171,7 +171,7 @@ const insertTransactionTags = async (transactions, tagIdMap, client) => {
       console.log('No transaction-tag pairs to insert');
     }
   } catch (err) {
-    console.err('Error inserting transaction_tags:', err);
+    console.error('Error inserting transaction_tags:', err);
   }
 };
 
@@ -201,14 +201,15 @@ const insertTransactions = async (
       // Insert transaction
       await client.query(
         `
-        INSERT INTO transactions (id, date, description, amount, quantity, source, category_id, group_id, notes, link, location)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        INSERT INTO transactions (id, date, description, original_description, amount, quantity, source, category_id, group_id, notes, link, location)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
         ON CONFLICT (id) DO NOTHING;
         `,
         [
           transaction.id,
           transaction.date,
           transaction.description,
+          transaction.original_description,
           transaction.amount,
           transaction.quantity || 1, // Default quantity to 1 if undefined
           transaction.source,
@@ -248,6 +249,7 @@ const populateDatabase = async () => {
           id: row.id,
           date: row.date,
           description: row.description,
+          original_description: row.original_description,
           amount: parseFloat(row.amount),
           quantity: row.quantity ? parseInt(row.quantity, 10) : null,
           source: row.source,

@@ -26,7 +26,9 @@ frontend/build/
 frontend/.cache/
 
 # Editor settings
-.vscode/*
+/.vscode
+backend/.vscode/*
+frontend/.vscode/*
 !.vscode/extensions.json
 eslint.config.mjs
 .idea/
