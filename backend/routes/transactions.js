@@ -5,6 +5,7 @@ const {
   getTransactionsByCategory,
   getTransactionsByFilters,
   getTransactionById,
+  updateTransaction,
   checkTransactionExists,
   updateTransactionCategory,
   insertTestTransactions,
@@ -159,6 +160,20 @@ router.get('/id/:id', async (req, res) => {
   } catch (err) {
     console.error('Error fetching transaction', err.message);
     res.status(404).json({ error: err.message });
+  }
+});
+
+//* Update a specific transaction
+router.put('/transactions/:id', async (req, res) => {
+  const { id } = req.params;
+  const updates = req.body;
+
+  try {
+    const result = await updateTransaction(id, updates);
+    res.json(result);
+  } catch (error) {
+    console.error(`Error updating transaction with ID ${id}:`, error.message);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 

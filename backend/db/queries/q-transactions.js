@@ -132,11 +132,13 @@ const getTransactionById = async (id) => {
       t.id,
       t.date,
       t.description,
+      t.original_description,
       t.amount,
       c.name AS category_name,
       g.name as group_name,
       t.is_split,
       t.notes,
+      t.source,
       array_agg(tt.name) AS tags
     FROM transactions t
     LEFT JOIN categories c ON t.category_id = c.id
@@ -151,6 +153,36 @@ const getTransactionById = async (id) => {
 
   if (result.rows.length === 0) {
     throw new Error(`Transaction with ID "${id} not found`);
+  }
+
+  return result.rows[0];
+};
+
+//* PUT edit a transaction by its id
+// Update transaction
+const updateTransaction = async (id, updates) => {
+  const fields = [];
+  const values = [];
+  let count = 1;
+
+  for (const [key, value] of Object.entries(updates)) {
+    fields.push(`${key} = $${count}`);
+    values.push(value);
+    count++;
+  }
+
+  const query = `
+    UPDATE transactions
+    SET ${fields.join(', ')}
+    WHERE id = $${count}
+    RETURNING *;
+  `;
+
+  values.push(id);
+
+  const result = await pool.query(query, values);
+  if (result.rows.length === 0) {
+    throw new Error(`Transaction with ID ${id} not found`);
   }
 
   return result.rows[0];
@@ -611,6 +643,7 @@ module.exports = {
   getTransactionsByCategory,
   getTransactionsByFilters,
   getTransactionById,
+  updateTransaction,
   checkTransactionExists,
   updateTransactionCategory,
   insertTestTransactions,

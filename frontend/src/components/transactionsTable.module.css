@@ -1,63 +1,115 @@
-/* TransactionsTable.module.css */
-.table-container {
-  margin: 20px auto;
-  padding: 10px;
-  max-width: 90%;
-  border: 1px solid #ccc;
-  border-radius: 5px;
-  /* background-color: #f9f9f9; */
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+/* transactionsTable.module.css */
+
+.container {
+  margin: 0 auto;
+  padding: 20px;
+  max-width: 1200px;
+  font-family: Arial, sans-serif;
 }
 
-.table-container table {
+.table {
   width: 100%;
   border-collapse: collapse;
-  margin-top: 10px;
+  margin-bottom: 20px;
 }
 
-.table-container th,
-.table-container td {
+.table th,
+.table td {
+  border: 1px solid #ddd;
+  padding: 8px;
   text-align: left;
-  padding: 12px;
-  border-bottom: 1px solid #ddd;
 }
 
-.table-container th {
-  background-color: #8d9893;
+.table th {
+  background-color: #f4f4f4;
   font-weight: bold;
-  color: #ddd;
+  color: #333;
 }
 
-.table-container tr:hover {
+.row:hover {
   background-color: #f1f1f1;
-}
-
-.table-container .pagination {
-  margin-top: 10px;
-  text-align: center;
-}
-
-.table-container .pagination button {
-  margin: 0 5px;
-  padding: 5px 10px;
-  background-color: #007bff;
-  color: white;
-  border: none;
-  border-radius: 3px;
   cursor: pointer;
 }
 
-.table-container .pagination button:disabled {
-  background-color: #ccc;
+.paginationControls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 20px;
+}
+
+.paginationControls button {
+  background-color: #007bff;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.paginationControls button:disabled {
+  background-color: #ddd;
+  color: #999;
   cursor: not-allowed;
 }
 
-.table-container .pagination button:hover:not(:disabled) {
-  background-color: #0056b3;
+.paginationControls select {
+  padding: 6px;
+  font-size: 14px;
 }
 
-.table-container select {
-  margin: 10px 0;
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modalContent {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  width: 500px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  position: relative;
+}
+
+.modalBody {
+  margin-bottom: 20px;
+}
+
+.modalBody label {
+  display: block;
+  margin-bottom: 10px;
+}
+
+.modalBody input {
+  width: calc(100% - 12px);
   padding: 5px;
-  font-size: 16px;
+  margin-top: 4px;
+}
+
+.modalActions {
+  display: flex;
+  justify-content: space-between;
+}
+
+.closeButton {
+  background-color: #ff4d4d;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 14px;
+  position: absolute;
+  top: 10px;
+  right: 10px;
 }
