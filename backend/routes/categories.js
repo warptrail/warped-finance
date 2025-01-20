@@ -5,6 +5,7 @@ const {
   getCategoryByName,
   insertCategory,
   updateCategoryName,
+  fetchCategoriesByGroup,
 } = require('../db/queries/q-categories');
 
 // Get all categories
@@ -15,6 +16,16 @@ router.get('/', async (req, res) => {
   } catch (error) {
     console.error('Error fetching categories:', error);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.get('/grouped', async (req, res) => {
+  try {
+    const groupedCategories = await fetchCategoriesByGroup();
+    res.json(groupedCategories);
+  } catch (err) {
+    console.error('Error fetching grouped categories:', err);
+    res.status(500).send('Failed to fetch grouped categories');
   }
 });
 

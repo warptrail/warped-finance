@@ -1,88 +1,49 @@
-/* eslint-disable react/prop-types */
 import { useEffect, useMemo, useState } from 'react';
 import { useTable, usePagination } from 'react-table';
-import { fetchTransactions, getTransactionById } from '../utils/api';
-import styles from './transactionsTable.module.css';
 
-const TransactionModal = ({ transaction, onClose }) => {
-  const [isEditing, setIsEditing] = useState(false);
-  if (!transaction) return null;
+import Modal from './Modal/Modal';
 
-  return (
-    <div className={styles.modalOverlay}>
-      <div className={styles.modalContent}>
-        <h2>Transaction Details</h2>
-        {isEditing ? (
-          <div className={styles.modalBody}>
-            <label>
-              Description:
-              <input defaultValue={transaction.description} />
-            </label>
-            <label>
-              Amount:
-              <input defaultValue={transaction.amount} type="number" />
-            </label>
-            <label>
-              Notes:
-              <input defaultValue={transaction.notes} />
-            </label>
-            <div className={styles.modalActions}>
-              <button onClick={() => setIsEditing(false)}>Cancel</button>
-              <button>Save Changes</button>
-            </div>
-          </div>
-        ) : (
-          <div className={styles.modalBody}>
-            <p>
-              <strong>ID:</strong> {transaction.id}
-            </p>
-            <p>
-              <strong>Date:</strong> {transaction.date}
-            </p>
-            <p>
-              <strong>Description:</strong> {transaction.description}
-            </p>
-            <p>
-              <strong>Original Description:</strong>{' '}
-              {transaction.original_description}
-            </p>
-            <p>
-              <strong>Amount:</strong> {transaction.amount}
-            </p>
-            <p>
-              <strong>Category:</strong> {transaction.category}
-            </p>
-            <p>
-              <strong>Tags:</strong> {transaction.tags.join(', ')}
-            </p>
-            <p>
-              <strong>Notes:</strong> {transaction.notes}
-            </p>
-            <p>
-              <strong>Source:</strong> {transaction.source}
-            </p>
-            <button onClick={() => setIsEditing(true)}>Edit</button>
-          </div>
-        )}
-        <button onClick={onClose} className={styles.closeButton}>
-          Close
-        </button>
-      </div>
-    </div>
-  );
-};
+import {
+  fetchTransactions,
+  fetchCategories,
+  fetchTags,
+  getTransactionById,
+} from '../../utils/api';
+
+import styles from './TransactionTable.module.css';
 
 const TransactionsTable = () => {
+  const [categories, setCategories] = useState([]);
+  const [tags, setTags] = useState([]);
   const [transactions, setTransactions] = useState([]);
   const [selectedTransaction, setSelectedTransaction] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchTransactions()
-      .then(setTransactions)
-      .finally(() => setLoading(false));
+    setLoading(true);
+    Promise.all([fetchTransactions(), fetchCategories(), fetchTags()])
+      .then(([transactionsData, categoriesData, tagsData]) => {
+        setTransactions(transactionsData);
+
+        // Group categories by their groupName for easier use in the dropdown
+        const groupedCategories = categoriesData.reduce((acc, category) => {
+          const { groupName, name, id } = category;
+          if (!acc[groupName]) acc[groupName] = [];
+          acc[groupName].push({ name, id });
+          return acc;
+        }, {});
+        setCategories(groupedCategories);
+        setTags(tagsData);
+      })
+      .catch((err) => console.error('Error fetching data:', err))
+      .finally(() => {
+        setLoading(false);
+      });
   }, []);
+
+  console.log(categories);
+  console.table(tags);
 
   const columns = useMemo(
     () => [
@@ -95,12 +56,20 @@ const TransactionsTable = () => {
         accessor: 'date',
       },
       {
+        Header: 'Amount',
+        accessor: 'amount',
+      },
+      {
         Header: 'Description',
         accessor: 'description',
       },
       {
         Header: 'Category',
-        accessor: 'category',
+        accessor: 'category_name',
+      },
+      {
+        Header: 'Group',
+        accessor: 'group_name',
       },
       {
         Header: 'Tags',
@@ -146,6 +115,18 @@ const TransactionsTable = () => {
       setShowModal(true);
     } catch (error) {
       console.error('Error fetching transaction details:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const refreshTable = async () => {
+    try {
+      setLoading(true);
+      const updatedTransactions = await fetchTransactions();
+      setTransactions(updatedTransactions);
+    } catch (err) {
+      console.error('Error refreshing transactions:', err);
     } finally {
       setLoading(false);
     }
@@ -225,12 +206,15 @@ const TransactionsTable = () => {
       </div>
 
       {showModal && (
-        <TransactionModal
+        <Modal
           transaction={selectedTransaction}
+          categories={categories}
+          tags={tags}
           onClose={() => {
             setShowModal(false);
             setSelectedTransaction(null);
           }}
+          refreshTable={refreshTable}
         />
       )}
     </div>

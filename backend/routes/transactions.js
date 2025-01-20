@@ -164,12 +164,14 @@ router.get('/id/:id', async (req, res) => {
 });
 
 //* Update a specific transaction
-router.put('/transactions/:id', async (req, res) => {
+router.put('/id/:id', async (req, res) => {
   const { id } = req.params;
   const updates = req.body;
+  console.log('updates: ', updates);
 
   try {
     const result = await updateTransaction(id, updates);
+    console.log('result', result);
     res.json(result);
   } catch (error) {
     console.error(`Error updating transaction with ID ${id}:`, error.message);

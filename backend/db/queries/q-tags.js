@@ -104,4 +104,77 @@ const createTag = async (tagName) => {
   }
 };
 
-module.exports = { getTransactionsWithTags, getTransactionsByTags, createTag };
+// Fetch all tags
+const getAllTags = async () => {
+  const query = `SELECT id, name FROM tags ORDER BY name ASC;`;
+  const result = await pool.query(query);
+  console.log(result);
+  return result.rows;
+};
+
+const updateTransactionTags = async (transactionId, newTags) => {
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    // Fetch existing tags for the transaction
+    const existingTagsResult = await client.query(
+      'SELECT t.name FROM tags t JOIN transaction_tags tt ON t.id = tt.tag_id WHERE tt.transaction_id = $1',
+      [transactionId]
+    );
+
+    const existingTags = existingTagsResult.rows.map((row) => row.name);
+
+    // Determine tags to add and remove
+    const tagsToAdd = newTags.filter((tag) => !existingTags.includes(tag));
+    const tagsToRemove = existingTags.filter((tag) => !newTags.includes(tag));
+
+    // Remove tags
+    if (tagsToRemove.length > 0) {
+      await client.query(
+        `
+        DELETE FROM transaction_tags
+        WHERE transaction_id = $1 AND tag_id IN (
+          SELECT id FROM tags WHERE name = ANY($2)
+        )
+        `,
+        [transactionId, tagsToRemove]
+      );
+    }
+
+    // Add new tags
+    for (const tag of tagsToAdd) {
+      // Ensure the tag exists in the tags table
+      const tagResult = await client.query(
+        'INSERT INTO tags (name) VALUES ($1) ON CONFLICT (name) DO NOTHING RETURNING id',
+        [tag]
+      );
+      const tagId =
+        tagResult.rows[0]?.id ||
+        (await client.query('SELECT id FROM tags WHERE name = $1', [tag]))
+          .rows[0].id;
+
+      // Add the tag to the transaction
+      await client.query(
+        'INSERT INTO transaction_tags (transaction_id, tag_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+        [transactionId, tagId]
+      );
+    }
+
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+};
+
+module.exports = {
+  getTransactionsWithTags,
+  getTransactionsByTags,
+  createTag,
+  getAllTags,
+  updateTransactionTags,
+};

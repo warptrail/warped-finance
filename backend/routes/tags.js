@@ -3,6 +3,8 @@ const {
   getTransactionsWithTags,
   getTransactionsByTags,
   createTag,
+  getAllTags,
+  updateTransactionTags,
 } = require('../db/queries/q-tags');
 const router = express.Router();
 
@@ -37,7 +39,7 @@ router.get('/transactions-by-tags', async (req, res) => {
   }
 });
 
-//* Insert a new transaction
+//* Insert a new tag
 router.post('/new', async (req, res) => {
   const { name } = req.body; // Expecting the tag name in the request body
 
@@ -57,6 +59,31 @@ router.post('/new', async (req, res) => {
       console.error('Error creating tag:', err.message);
       res.status(500).json({ error: 'Failed to create tag' });
     }
+  }
+});
+
+// GET /api/tags - Fetch all tags
+router.get('/', async (req, res) => {
+  try {
+    const tags = await getAllTags();
+    res.status(200).json(tags);
+  } catch (error) {
+    console.error('Error fetching tags:', error);
+    res.status(500).json({ error: 'Failed to fetch tags' });
+  }
+});
+
+//* Edit the transaction tags
+router.put('/per-transaction/:id', async (req, res) => {
+  const { id } = req.params; // The transaction id
+  const { tags } = req.body;
+
+  try {
+    await updateTransactionTags(id, tags);
+    res.status(200).send({ message: 'Tags updated successfully' });
+  } catch (err) {
+    console.error('Error updating tags:', err);
+    res.status(500).send({ error: 'Failed to update tags' });
   }
 });
 

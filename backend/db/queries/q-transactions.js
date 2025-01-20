@@ -139,6 +139,9 @@ const getTransactionById = async (id) => {
       t.is_split,
       t.notes,
       t.source,
+      t.link,
+      t.location,
+      t.quantity,
       array_agg(tt.name) AS tags
     FROM transactions t
     LEFT JOIN categories c ON t.category_id = c.id
@@ -164,6 +167,8 @@ const updateTransaction = async (id, updates) => {
   const fields = [];
   const values = [];
   let count = 1;
+
+  console.log('updates', updates);
 
   for (const [key, value] of Object.entries(updates)) {
     fields.push(`${key} = $${count}`);

@@ -17,10 +17,11 @@ INSERT INTO groups (name) VALUES ('ungrouped') ON CONFLICT DO NOTHING;
 
 -- Step 2: Create Categories Table
 CREATE TABLE categories (
-    id SERIAL PRIMARY KEY,
-    name TEXT NOT NULL UNIQUE,
-    "groupName" TEXT NOT NULL REFERENCES groups(name) ON DELETE SET NULL
+    id SERIAL PRIMARY KEY,                     -- Unique identifier for the category
+    name TEXT NOT NULL UNIQUE,                 -- Category name, must be unique
+    group_id INTEGER NOT NULL REFERENCES groups(id) ON DELETE SET NULL -- Foreign key to groups table
 );
+
 
 -- Insert Default Category "uncategorized" in Group "ungrouped"
 INSERT INTO categories (name, "groupName") VALUES ('uncategorized', 'ungrouped') ON CONFLICT DO NOTHING;
@@ -50,7 +51,6 @@ CREATE TABLE tags (
     name TEXT NOT NULL UNIQUE
 );
 
--- Insert Commonly Used Tags
 -- Insert Commonly Used Tags
 INSERT INTO tags (name)
 VALUES
@@ -103,9 +103,6 @@ CREATE TABLE transaction_tags (
     PRIMARY KEY (transaction_id, tag_id)
 );
 
--- Step 6: Update the Categories Table
-ALTER TABLE categories ADD CONSTRAINT unique_category_group UNIQUE (name, "groupName");
-
 -- Add check constraint to prevent infinite splits
 ALTER TABLE transactions
     ADD CONSTRAINT check_no_infinite_splits CHECK (
@@ -128,18 +125,37 @@ BEGIN
         WHERE name = 'uncategorized';
     END IF;
 
-    -- Set group_id based on the category's group
-    SELECT g.id INTO NEW.group_id
-    FROM groups g
-    JOIN categories c ON g.name = c."groupName"
-    WHERE c.id = NEW.category_id;
+    -- Set group_id based on the category's group_id
+    SELECT group_id INTO NEW.group_id
+    FROM categories
+    WHERE id = NEW.category_id;
 
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
--- Trigger to call the function before insert on transactions
+-- Step 8: Trigger to call the function before insert on transactions
 CREATE TRIGGER set_defaults_on_transactions
 BEFORE INSERT ON transactions
 FOR EACH ROW
 EXECUTE FUNCTION set_default_category_and_group();
+
+-- Step 9: Add a trigger function to update group_id when category_id changes
+CREATE OR REPLACE FUNCTION update_group_id()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Update group_id based on the new category_id
+    SELECT group_id INTO NEW.group_id
+    FROM categories
+    WHERE id = NEW.category_id;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trigger_update_group_id ON transactions;
+
+CREATE TRIGGER trigger_update_group_id
+BEFORE UPDATE OF category_id ON transactions
+FOR EACH ROW
+EXECUTE FUNCTION update_group_id();

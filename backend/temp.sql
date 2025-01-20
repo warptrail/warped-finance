@@ -143,3 +143,9 @@ FROM transactions
 WHERE source = 'Mint'
 ORDER BY date DESC;
 
+-- See all categories organized by group name
+SELECT c.id, c.name, g.name AS "groupName"
+FROM categories c
+JOIN groups g ON c."groupName" = g.name
+ORDER BY g.name, c.name;
+

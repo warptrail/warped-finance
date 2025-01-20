@@ -1,0 +1,67 @@
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modalContent {
+  background: #f7fbf7;
+  padding: 20px;
+  border-radius: 8px;
+  width: 500px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  position: relative;
+}
+
+.modalBody {
+  margin-bottom: 40px;
+}
+
+.modalBody label {
+  display: block;
+  margin-bottom: 10px;
+}
+
+.modalBody input {
+  width: calc(100% - 12px);
+  padding: 5px;
+  margin-top: 4px;
+}
+
+.modalActions {
+  display: flex;
+  justify-content: space-between;
+}
+
+.closeButton {
+  background-color: #ff4d4d;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 14px;
+  position: absolute;
+  top: 10px;
+  right: 10px;
+}
+
+.editButton {
+  background-color: #4cc7f8;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 14px;
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+}

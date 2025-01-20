@@ -1,0 +1,21 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 1rem;
+}
+
+.listPanel {
+  border-right: 1px solid #ddd;
+  padding-right: 1rem;
+}
+
+.actionsPanel {
+  padding-left: 1rem;
+}

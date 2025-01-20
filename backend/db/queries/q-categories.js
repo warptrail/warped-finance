@@ -6,6 +6,24 @@ const getAllCategories = async () => {
   return result.rows;
 };
 
+// Fetch all categories organized by group name
+const fetchCategoriesByGroup = async () => {
+  const query = `
+    SELECT 
+      g.id AS group_id,
+      g.name AS group_name,
+      JSON_AGG(
+        JSON_BUILD_OBJECT('id', c.id, 'name', c.name)
+      ) AS categories
+FROM groups g
+LEFT JOIN categories c ON g.name = c."groupName"
+GROUP BY g.id, g.name
+ORDER BY g.name;
+    `;
+  const result = await pool.query(query); //! Fix this function!!!
+  return result.rows;
+};
+
 // Fetch a category by name
 const getCategoryByName = async (name) => {
   const result = await pool.query('SELECT * FROM categories WHERE name = $1', [
@@ -100,4 +118,5 @@ module.exports = {
   getCategoryByName,
   insertCategory,
   updateCategoryName,
+  fetchCategoriesByGroup,
 };

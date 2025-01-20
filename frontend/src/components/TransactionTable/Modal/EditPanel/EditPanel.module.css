@@ -1,0 +1,109 @@
+.selectContainer {
+  position: relative;
+  width: 100%;
+  margin-top: 10px;
+}
+
+.selectLabel {
+  font-size: 14px;
+  /* font-weight: bold; */
+  /* color: #333; */
+  margin-bottom: 5px;
+  display: block;
+}
+
+.selectContainer select {
+  width: 100%;
+  padding: 10px 15px;
+  font-size: 16px;
+  font-family: Arial, sans-serif;
+  color: #333;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: #f9f9f9;
+  appearance: none; /* Removes native styling */
+  outline: none;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.selectElement:hover {
+  border-color: #888;
+}
+
+.selectElement:focus {
+  border-color: #4caf50; /* Highlight border */
+  box-shadow: 0 0 5px rgba(76, 175, 80, 0.5); /* Subtle green glow */
+}
+
+.selectElement:disabled {
+  background-color: #eaeaea;
+  border-color: #ddd;
+  cursor: not-allowed;
+}
+
+.selectArrow {
+  position: absolute;
+  top: 75%;
+  right: 15px;
+  transform: translateY(-50%);
+  pointer-events: none;
+  color: #555;
+}
+
+.selectContainer .selectArrow::after {
+  content: '▼'; /* Unicode for down arrow */
+  font-size: 18px;
+}
+
+.buttonGroup {
+  display: flex;
+  flex-direction: row-reverse;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 20px;
+  gap: 10px; /* Space between buttons */
+}
+
+.saveButton {
+  flex: 8; /* Takes up 80% of the available space */
+  background-color: #4caf50; /* Green for Save */
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  padding: 10px 20px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  text-align: center;
+}
+
+.saveButton:hover {
+  background-color: #388e3c; /* Darker Green on Hover */
+}
+
+.cancelButton {
+  flex: 2; /* Takes up 20% of the available space */
+  background-color: #f44336; /* Red for Cancel */
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  padding: 10px 20px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  text-align: center;
+}
+
+.cancelButton:hover {
+  background-color: #d32f2f; /* Darker Red on Hover */
+}
+
+.cancelButton:disabled,
+.saveButton:disabled {
+  background-color: #ccc; /* Grey for Disabled */
+  cursor: not-allowed;
+}
+
+.buttonGroup button {
+  font-family: Arial, sans-serif;
+}
