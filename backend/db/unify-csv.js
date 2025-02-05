@@ -7,7 +7,7 @@ const { writeToPath } = require('fast-csv');
 const mintFile = 'db/original-csv/mint/mint_transactions.csv';
 const everyDollarFolderPath = './db/original-csv/everydollar';
 const outputFilePath = './db/unified.csv';
-const overlappingFilePath = './db/overlappingCategories.json';
+const overlappingFilePath = 'db/overlappingCategories.json';
 
 // Unified CSV headers
 const unifiedHeaders = [
@@ -17,8 +17,8 @@ const unifiedHeaders = [
   'description',
   'original_description',
   'amount',
-  'category',
-  'groupName',
+  'category_name',
+  'group_name',
   'is_split',
   'account_name',
   'notes',
@@ -63,8 +63,8 @@ const processMintFile = (filePath) =>
           description: normalizeText(row.Description),
           original_description: row['Original Description'] || null,
           amount,
-          category: normalizeText(row.Category),
-          groupName:
+          category_name: normalizeText(row.Category),
+          group_name:
             categoryToGroupMap.get(normalizeText(row.Category)) || 'ungrouped',
           is_split: false,
           account_name: row['Account Name'],
@@ -109,8 +109,8 @@ const processEveryDollarFiles = () =>
             description: normalizeText(row.merchant),
             original_description: null, // EveryDollar does not have this data
             amount: parseFloat(row.amount),
-            category: normalizeText(row.item),
-            groupName: normalizeText(row.group),
+            category_name: normalizeText(row.item),
+            group_name: normalizeText(row.group),
             is_split: false,
             account_name: null,
             notes: null, // EveryDollar does not have this data
@@ -150,8 +150,8 @@ const unifyCsvFiles = async () => {
     // Filter out empty rows or rows missing critical fields
     const filteredTransactions = allTransactions.filter((row) => {
       return (
-        row.category &&
-        row.groupName &&
+        row.category_name &&
+        row.group_name &&
         Object.values(row).some((value) => value && String(value).trim() !== '')
       );
     });

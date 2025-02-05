@@ -149,3 +149,69 @@ FROM categories c
 JOIN groups g ON c."groupName" = g.name
 ORDER BY g.name, c.name;
 
+-- Everything from the last 5 Mint transactions
+SELECT 
+    t.id AS transaction_id,
+    t.date,
+    t.description,
+    t.amount,
+    t.notes,
+    t.source,
+    t.account_name,
+    c.id AS category_id,
+    c.name AS category_name,
+    g.id AS group_id,
+    g.name AS group_name,
+    COALESCE(STRING_AGG(tags.name, ', '), 'No tags') AS tags
+FROM transactions t
+LEFT JOIN categories c ON t.category_id = c.id
+LEFT JOIN groups g ON c.group_id = g.id
+LEFT JOIN transaction_tags tt ON t.id = tt.transaction_id
+LEFT JOIN tags ON tt.tag_id = tags.id
+WHERE t.source = 'Mint'
+GROUP BY t.id, t.date, t.description, t.amount, t.notes, t.source, c.id, c.name, g.id, g.name
+ORDER BY t.date DESC
+LIMIT 5;
+
+-- For pulling all transactions that have a non-null account_name, let’s write this query:
+SELECT 
+    t.id AS transaction_id,
+    t.date,
+    t.description,
+    t.amount,
+    t.account_name,
+    t.notes,
+    t.source,
+    c.name AS category_name,
+    g.name AS group_name,
+    COALESCE(STRING_AGG(tags.name, ', '), 'No tags') AS tags
+FROM transactions t
+LEFT JOIN categories c ON t.category_id = c.id
+LEFT JOIN groups g ON c.group_id = g.id
+LEFT JOIN transaction_tags tt ON t.id = tt.transaction_id
+LEFT JOIN tags ON tt.tag_id = tags.id
+WHERE t.account_name IS NOT NULL
+GROUP BY t.id, t.date, t.description, t.amount, t.account_name, t.notes, t.source, c.name, g.name
+ORDER BY t.date DESC;
+
+-- The same query but further narrowed down 
+SELECT 
+    t.id AS transaction_id,
+    t.date,
+    t.description,
+    t.amount,
+    t.account_name,
+    t.notes,
+    t.source,
+    c.name AS category_name,
+    g.name AS group_name,
+    COALESCE(STRING_AGG(tags.name, ', '), 'No tags') AS tags
+FROM transactions t
+LEFT JOIN categories c ON t.category_id = c.id
+LEFT JOIN groups g ON c.group_id = g.id
+LEFT JOIN transaction_tags tt ON t.id = tt.transaction_id
+LEFT JOIN tags ON tt.tag_id = tags.id
+WHERE t.account_name IS NOT NULL
+    AND tt.tag_id IS NOT NULL
+GROUP BY t.id, t.date, t.description, t.amount, t.account_name, t.notes, t.source, c.name, g.name
+ORDER BY t.date DESC;
