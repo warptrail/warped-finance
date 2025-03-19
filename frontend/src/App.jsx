@@ -1,3 +1,4 @@
+import Modal from 'react-modal';
 import './app.css';
 import { useEffect, useState } from 'react';
 import axios from 'axios';
@@ -5,6 +6,8 @@ import axios from 'axios';
 // Import Components
 import TransactionsTable from './components/TransactionTable/index';
 import CategoriesManager from './components/CategoriesManager';
+
+Modal.setAppElement('#root');
 
 const App = () => {
   const [message, setMessage] = useState('');

@@ -5,7 +5,7 @@ const {
 } = require('../db/queries/q-groups');
 const router = express.Router();
 
-router.get('/', async (req, res) => {
+router.get('/all', async (req, res) => {
   try {
     const groups = await getAllGroups();
     res.status(200).json(groups);

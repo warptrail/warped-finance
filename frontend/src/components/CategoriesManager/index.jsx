@@ -7,6 +7,11 @@ import styles from './index.module.css';
 function CategoriesManager() {
   const [selectedCategory, setSelectedCategory] = useState(null);
 
+  console.log(
+    'this is the selected Category from State in the categoriesManager index.jsx file::::',
+    selectedCategory
+  );
+
   return (
     <div className={styles.container}>
       <h2>Manage Categories</h2>

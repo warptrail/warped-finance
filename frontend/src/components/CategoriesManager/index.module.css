@@ -14,8 +14,12 @@
 .listPanel {
   border-right: 1px solid #ddd;
   padding-right: 1rem;
+  /* Add independent scroll behavior */
+  max-height: 80vh;
+  overflow-y: auto;
 }
 
 .actionsPanel {
   padding-left: 1rem;
+  overflow-y: auto; /* Optional: if the actions content grows */
 }

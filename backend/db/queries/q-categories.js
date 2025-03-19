@@ -9,18 +9,16 @@ const getAllCategories = async () => {
 // Fetch all categories organized by group name
 const fetchCategoriesByGroup = async () => {
   const query = `
-    SELECT 
-      g.id AS group_id,
-      g.name AS group_name,
-      JSON_AGG(
-        JSON_BUILD_OBJECT('id', c.id, 'name', c.name)
-      ) AS categories
-FROM groups g
-LEFT JOIN categories c ON g.name = c."groupName"
-GROUP BY g.id, g.name
-ORDER BY g.name;
+  SELECT
+    c.id AS category_id,
+    c.name as category_name,
+    g.id AS group_id,
+    g.name AS group_name
+  FROM categories c
+  JOIN groups g ON c.group_id = g.id
+  ORDER BY g.id, c.name;
     `;
-  const result = await pool.query(query); //! Fix this function!!!
+  const result = await pool.query(query);
   return result.rows;
 };
 

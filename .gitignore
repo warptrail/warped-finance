@@ -21,6 +21,9 @@ lerna-debug.log*
 Thumbs.db
 Icon?
 
+# Shell Scripts
+start.sh
+
 # Build outputs (React)
 frontend/build/
 frontend/.cache/

@@ -2,7 +2,7 @@ const pool = require('../pool');
 
 const getAllGroups = async () => {
   try {
-    const result = await pool.query('SELECT * FROM groups ORDER BY id;');
+    const result = await pool.query('SELECT * FROM groups ORDER BY id ASC;');
     return result.rows;
   } catch (err) {
     console.error('Error fetching groups:', err);

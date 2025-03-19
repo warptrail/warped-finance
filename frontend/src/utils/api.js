@@ -1,6 +1,6 @@
 const BASE_URL = 'http://localhost:5002/api'; // Adjust to your backend API URL
 
-// Fetch all categories from the backend
+// Fetch all categories
 export const fetchCategories = async () => {
   try {
     const response = await fetch(`${BASE_URL}/categories`);
@@ -49,29 +49,6 @@ export const fetchTags = async () => {
 };
 
 // Update a transaction with edited data
-export const updateTransactionOld = async (transaction) => {
-  try {
-    const response = await fetch(
-      `${BASE_URL}/transactions/id/${transaction.id}`,
-      {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(transaction),
-      }
-    );
-    if (!response.ok) {
-      throw new Error('Failed to update transaction');
-    }
-    const updatedTransaction = await response.json();
-    return updatedTransaction;
-  } catch (error) {
-    console.error('Error updating transaction:', error);
-    throw error;
-  }
-};
-
 export const updateTransaction = async (transactionId, updatedFields) => {
   try {
     const response = await fetch(
@@ -115,6 +92,51 @@ export const updateTransactionTags = async (transactionId, tags) => {
   return await response.json();
 };
 
-/* 
-Logic
-*/
+export const fetchCategoriesByGroup = async () => {
+  try {
+    const response = await fetch(
+      'http://localhost:5002/api/categories/grouped'
+    );
+    if (!response.ok) {
+      throw new Error('Failed to fetch categories');
+    }
+    return await response.json();
+  } catch (err) {
+    console.error('Error fetching categories:', err);
+  }
+};
+
+// Fetch a list of available groups
+export const fetchGroups = async () => {
+  try {
+    const response = await fetch(`${BASE_URL}/groups/all`);
+    if (!response.ok) {
+      throw new Error('Failed to fetch groups');
+    }
+    console.log('api fetchGroups test', response);
+    return await response.json();
+  } catch (err) {
+    console.error('Error fetching groups', err);
+    return [];
+  }
+};
+
+// Update a category's group
+export const updateCategoryGroup = async (categoryId, newGroupId) => {
+  try {
+    const response = await fetch(`/api/categories/${categoryId}/update-group`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ group_id: newGroupId }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to update category group');
+    }
+
+    return await response.json();
+  } catch (err) {
+    console.error('Error updating category group:', err);
+    throw err;
+  }
+};

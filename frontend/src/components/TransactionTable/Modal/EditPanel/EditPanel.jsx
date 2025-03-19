@@ -78,7 +78,7 @@ const EditPanel = ({ transaction, categories, onClose, refreshTable }) => {
       ...prev,
       tags: newTags
         .split(',')
-        .map((tag) => tag.trim())
+        .map((tag) => tag.trim().toLowerCase())
         .filter(Boolean),
     }));
   }, 300);

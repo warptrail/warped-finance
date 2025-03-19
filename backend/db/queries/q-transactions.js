@@ -9,16 +9,17 @@ const getAllTransactions = async () => {
           t.date, 
           t.description, 
           t.amount, 
+          t.account_name,
           c.name AS category_name, 
           g.name AS group_name, 
           t.is_split,
           COALESCE(json_agg(DISTINCT tg.name) FILTER (WHERE tg.name IS NOT NULL), '[]') AS tags
       FROM transactions t
       LEFT JOIN categories c ON t.category_id = c.id
-      LEFT JOIN groups g ON c."groupName" = g.name
+      LEFT JOIN groups g ON c.group_id = g.id
       LEFT JOIN transaction_tags tt ON t.id = tt.transaction_id
       LEFT JOIN tags tg ON tt.tag_id = tg.id
-      GROUP BY t.id, t.date, t.description, t.amount, c.name, g.name
+      GROUP BY t.id, t.date, t.description, t.amount, t.account_name, c.name, g.name
       ORDER BY t.id DESC
     `
   );
@@ -128,24 +129,25 @@ const getTransactionsByFilters = async (filters) => {
 //* Get a transaction by its id
 const getTransactionById = async (id) => {
   const query = `
-    SELECT
+      SELECT
       t.id,
       t.date,
       t.description,
       t.original_description,
       t.amount,
+      t.account_name,
       c.name AS category_name,
-      g.name as group_name,
+      g.name AS group_name,
       t.is_split,
       t.notes,
       t.source,
       t.link,
       t.location,
       t.quantity,
-      array_agg(tt.name) AS tags
+      COALESCE(json_agg(DISTINCT tt.name) FILTER (WHERE tt.name IS NOT NULL), '[]') AS tags
     FROM transactions t
     LEFT JOIN categories c ON t.category_id = c.id
-    LEFT JOIN groups g ON t.group_id = g.id
+    LEFT JOIN groups g ON c.group_id = g.id
     LEFT JOIN transaction_tags ttg ON t.id = ttg.transaction_id
     LEFT JOIN tags tt ON ttg.tag_id = tt.id
     WHERE t.id = $1

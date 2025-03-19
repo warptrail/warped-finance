@@ -89,7 +89,7 @@ const createTag = async (tagName) => {
       ON CONFLICT (name) DO NOTHING
       RETURNING id, name;
       `,
-      [tagName.trim()]
+      [tagName.trim().toLowerCase()]
     );
 
     if (result.rows.length === 0) {
