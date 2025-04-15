@@ -1,69 +1,70 @@
 /* eslint-disable react/prop-types */
-import { useState } from 'react';
-import CategoryModal from './CategoryModal';
 import styles from './CategoryActions.module.css';
 
-const CategoryActions = ({ selectedCategory }) => {
-  const [selectedAction, setSelectedAction] = useState(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-
-  // Open modal and set action
-  const openModal = (action) => {
-    setSelectedAction(action);
-    setIsModalOpen(true);
-  };
-
-  const closeModal = () => {
-    setIsModalOpen(false);
-    setSelectedAction(null);
-  };
-
+const CategoryActions = ({
+  selectedCategory,
+  setActiveModalAction,
+  setIsModalOpen,
+}) => {
   if (!selectedCategory) {
     return <p>Please select a category to perform actions.</p>;
   }
 
-  console.log('selected category:', selectedCategory);
+  const handleActionClick = (action) => {
+    setActiveModalAction(action);
+    setIsModalOpen(true);
+  };
 
   return (
     <div>
+      <h3 className={styles.selectedCategoryH3}>
+        Category Name: {selectedCategory.category_name}
+      </h3>
+      <h3 className={styles.selectedCategoryH3}>
+        Category ID: {selectedCategory.category_id}
+      </h3>
+      <h3 className={styles.selectedCategoryH3}>
+        Group Name: {selectedCategory.group_name}
+      </h3>
+      <h3 className={styles.selectedCategoryH3}>
+        Group ID: {selectedCategory.group_id}
+      </h3>
+
       <h3>
         Manage Category: {selectedCategory.category_name}
         {' --- '}[ {selectedCategory.group_name} ]
       </h3>
-      <button className={styles.actionButton} onClick={() => openModal('move')}>
+      <hr></hr>
+      <button
+        className={styles.actionButton}
+        onClick={() => handleActionClick('move')}
+      >
         Move to Another Group
       </button>
       <button
         className={styles.actionButton}
-        onClick={() => openModal('rename')}
+        onClick={() => handleActionClick('rename')}
       >
         Rename Category
       </button>
       <button
         className={styles.actionButton}
-        onClick={() => openModal('merge')}
+        onClick={() => handleActionClick('merge')}
       >
         Merge into Another Category
       </button>
       <button
         className={styles.actionButton}
-        onClick={() => openModal('delete')}
+        onClick={() => handleActionClick('create')}
       >
         Create New Category
       </button>
       <button
         className={styles.actionButton}
-        onClick={() => openModal('delete')}
+        onClick={() => handleActionClick('delete')}
       >
         Delete Category
       </button>
-
-      <CategoryModal
-        isOpen={isModalOpen}
-        onClose={closeModal}
-        selectedAction={selectedAction}
-        selectedCategory={selectedCategory}
-      />
     </div>
   );
 };

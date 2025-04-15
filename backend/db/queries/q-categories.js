@@ -7,8 +7,10 @@ const getAllCategories = async () => {
 };
 
 // Fetch all categories organized by group name
-const fetchCategoriesByGroup = async () => {
-  const query = `
+// This returns a flat array of objects organized by group id and then category name
+// these next two functions share the same query
+
+const queryCategoriesByGroup = `
   SELECT
     c.id AS category_id,
     c.name as category_name,
@@ -18,8 +20,40 @@ const fetchCategoriesByGroup = async () => {
   JOIN groups g ON c.group_id = g.id
   ORDER BY g.id, c.name;
     `;
+const fetchCategoriesByGroup = async () => {
+  const query = queryCategoriesByGroup;
   const result = await pool.query(query);
   return result.rows;
+};
+
+// This is for structuring the data for the categories manager UI
+const getCategoriesGroupedByGroup = async () => {
+  const result = await pool.query(queryCategoriesByGroup);
+  const rows = result.rows;
+  const grouped = {};
+
+  // grouping logic
+  for (const row of rows) {
+    const { group_id, group_name, category_id, category_name } = row;
+
+    // If this group hasn't bee added to the grouped object yet, initialize it
+    if (!grouped[group_id]) {
+      grouped[group_id] = {
+        group_id,
+        group_name,
+        categories: [],
+      };
+    }
+
+    // Push the current category into the corresponding group's categories array
+    grouped[group_id].categories.push({
+      category_id,
+      category_name,
+    });
+  }
+
+  // Convert the grouped object into an array of group objects
+  return Object.values(grouped);
 };
 
 // Fetch a category by name
@@ -111,10 +145,25 @@ const updateCategoryName = async (currentName, newName) => {
   }
 };
 
+// Change the group a category belongs to
+const updateCategoryGroup = async (categoryId, newGroupId) => {
+  const query = `
+  UPDATE categories
+  SET group_id = $1
+  WHERE id = $2
+  RETURNING *
+  `;
+  const values = [newGroupId, categoryId];
+  const result = await pool.query(query, values);
+  return result.rows[0];
+};
+
 module.exports = {
   getAllCategories,
   getCategoryByName,
   insertCategory,
   updateCategoryName,
   fetchCategoriesByGroup,
+  getCategoriesGroupedByGroup,
+  updateCategoryGroup,
 };

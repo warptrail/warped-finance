@@ -3,11 +3,12 @@ import { useState, useEffect } from 'react';
 import styles from './MoveCategory.module.css';
 import { fetchGroups, updateCategoryGroup } from '../../../../utils/api';
 
-function MoveCategory({ selectedCategory, onClose, onCategoryUpdated }) {
-  const [groups, setGroups] = useState([]);
-  const [selectedGroup, setSelectedGroup] = useState(selectedCategory.group_id);
+function MoveCategory({ selectedCategory, onCategoryUpdated }) {
+  const [groups, setGroups] = useState([]); // all available groups
 
-  console.log('category from MoveCategory', selectedCategory);
+  const [highlightedGroupId, setHighlightedGroupId] = useState(null);
+
+  // Simply gets a list of all available groups
   useEffect(() => {
     const loadGroups = async () => {
       try {
@@ -20,60 +21,78 @@ function MoveCategory({ selectedCategory, onClose, onCategoryUpdated }) {
     loadGroups();
   }, []);
 
-  const handleGroupSelect = (groupId) => {
-    setSelectedGroup(groupId);
-  };
+  console.log(selectedCategory, 'ahahdsfhasdfjsd');
 
+  // Function to submit a new group_id to the selected category, sends a put request
   const handleSubmit = async () => {
-    if (selectedGroup === selectedCategory.group_id) {
+    if (highlightedGroupId === selectedCategory.group_id) {
       alert('Category is already in this group:', selectedCategory.group_name);
       return;
     }
     try {
-      await updateCategoryGroup(selectedCategory.category_id, selectedGroup);
+      console.log(
+        'TESTING THE MOVE 🐄🐄🐄🐄🐄🐄',
+        selectedCategory,
+        highlightedGroupId
+      );
+      await updateCategoryGroup(
+        selectedCategory.category_id,
+        highlightedGroupId
+      );
       alert('Category moved successfully!');
       onCategoryUpdated(); // Refresh category list
-      onClose(); // Close modal
     } catch (err) {
       console.error('Error updating category group:', err);
       alert('Failed to move category.');
     }
   };
 
-  console.log('line 16 MoveCategory.jsx -- groupsData:', groups);
-
-  const setGroupClassName = (groupId, selectedGroup, currentGroup) => {
-    console.table(groupId, selectedGroup, currentGroup);
-    if (groupId === currentGroup) return styles.current; // Greyed out, can't select
-    if (groupId === selectedGroup) return styles.selected; // User-selected highlight
-    return null; // Default style
+  // Styling Logic
+  const getGroupClassName = (group) => {
+    if (group.id === selectedCategory.group_id) {
+      return `${styles.groupItem} ${styles.disabled}`;
+    }
+    if (group.id === highlightedGroupId) {
+      return `${styles.groupItem} ${styles.selected}`;
+    }
+    return styles.groupItem;
   };
 
+  // ! ==================================================================================
+  //! RETURN
   return (
     <div className={styles.container}>
       <h2>Move Category: {selectedCategory.category_name}</h2>
       <h3>currently in Group: {selectedCategory.group_name}</h3>
       <p>Select a new group</p>
-      <p>selected group: {selectedGroup}</p>
+      <p>selected group: {selectedCategory.group_name}</p>
       <ul className={styles.groupList}>
         {groups.map((group) => (
           <li
             key={group.id}
-            className={`${styles.groupItem} ${setGroupClassName(
-              group.id,
-              selectedGroup,
-              selectedCategory.group_name
-            )}`}
-            onClick={() => handleGroupSelect(group.id)}
+            className={getGroupClassName(group)}
+            onClick={() => {
+              if (group.id !== selectedCategory.group_id) {
+                setHighlightedGroupId(group.id);
+              }
+            }}
           >
             {group.name}
           </li>
         ))}
       </ul>
-      <button onClick={handleSubmit} className={styles.submitButton}>
+
+      <button
+        onClick={handleSubmit}
+        disabled={!highlightedGroupId}
+        className={
+          highlightedGroupId ? styles.activeButton : styles.disabledButton
+        }
+      >
         Move
       </button>
-      <button onClick={onClose} className={styles.cancelButton}>
+
+      <button onClick={onCategoryUpdated} className={styles.cancelButton}>
         Cancel
       </button>
     </div>

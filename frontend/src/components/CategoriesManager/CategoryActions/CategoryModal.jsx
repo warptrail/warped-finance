@@ -1,49 +1,66 @@
 /* eslint-disable react/prop-types */
 import Modal from 'react-modal';
+import MoveCategory from './actions/MoveCategory';
+import RenameCategory from './actions/RenameCategory';
+import MergeCategory from './actions/MergeCategory';
+import DeleteCategory from './actions/DeleteCategory';
+import CreateCategory from './actions/CreateCategory';
 import styles from './CategoryModal.module.css';
-
-import CreateCategory from './Actions/CreateCategory';
-import MergeCategory from './Actions/MergeCategory';
-import MoveCategory from './Actions/MoveCategory';
-import RenameCategory from './Actions/RenameCategory';
-import DeleteCategory from './Actions/DeleteCategory';
 
 const CategoryModal = ({
   isOpen,
   onClose,
-  selectedAction,
+  action,
   selectedCategory,
+  onCategoryUpdated,
 }) => {
-  console.log(
-    'this is the selected category from the Categorymodal Component. ',
-    selectedCategory
-  );
+  const renderContent = () => {
+    switch (action) {
+      case 'move':
+        return (
+          <MoveCategory
+            category={selectedCategory}
+            onCategoryUpdated={onCategoryUpdated}
+          />
+        );
+      case 'rename':
+        return (
+          <RenameCategory
+            category={selectedCategory}
+            onCategoryUpdated={onCategoryUpdated}
+          />
+        );
+      case 'merge':
+        return (
+          <MergeCategory
+            category={selectedCategory}
+            onCategoryUpdated={onCategoryUpdated}
+          />
+        );
+      case 'delete':
+        return (
+          <DeleteCategory
+            category={selectedCategory}
+            onCategoryUpdated={onCategoryUpdated}
+          />
+        );
+      case 'create':
+        return <CreateCategory onCategoryUpdated={onCategoryUpdated} />;
+      default:
+        return <p>No action selected.</p>;
+    }
+  };
+
   return (
     <Modal
       isOpen={isOpen}
       onRequestClose={onClose}
-      contentLabel="Manage Category"
+      contentLabel="Category Action Modal"
       className={styles.modal}
       overlayClassName={styles.overlay}
+      ariaHideApp={false} // Adjust or set via Modal.setAppElement in main app file
     >
-      <button className={styles.closeButton} onClick={onClose}>
-        ✖
-      </button>
-
-      {/* Render selected action component */}
-      {selectedAction === 'move' && (
-        <MoveCategory selectedCategory={selectedCategory} onClose={onClose} />
-      )}
-      {selectedAction === 'rename' && (
-        <RenameCategory selectedCategory={selectedCategory} onClose={onClose} />
-      )}
-      {selectedAction === 'merge' && (
-        <MergeCategory selectedCategory={selectedCategory} onClose={onClose} />
-      )}
-      {selectedAction === 'create' && <CreateCategory onClose={onClose} />}
-      {selectedAction === 'delete' && (
-        <DeleteCategory selectedCategory={selectedCategory} onClose={onClose} />
-      )}
+      <div className={styles.modalContent}>{renderContent()}</div>
     </Modal>
   );
 };

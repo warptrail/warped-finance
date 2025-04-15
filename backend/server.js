@@ -23,6 +23,10 @@ app.get('/', (req, res) => {
   res.send('Warped Finance Backend');
 });
 
+app.get('/api', (req, res) => {
+  res.json({ routes: ['groups', 'categories', 'tags', 'transactions'] });
+});
+
 // Routes
 app.use('/api/groups', groupsRouter);
 app.use('/api/categories', categoriesRouter);

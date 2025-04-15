@@ -6,6 +6,8 @@ const {
   insertCategory,
   updateCategoryName,
   fetchCategoriesByGroup,
+  getCategoriesGroupedByGroup,
+  updateCategoryGroup,
 } = require('../db/queries/q-categories');
 
 // Get all categories
@@ -19,9 +21,10 @@ router.get('/', async (req, res) => {
   }
 });
 
+// Get all categories organized into their groups
 router.get('/grouped', async (req, res) => {
   try {
-    const groupedCategories = await fetchCategoriesByGroup();
+    const groupedCategories = await getCategoriesGroupedByGroup();
     res.json(groupedCategories);
   } catch (err) {
     console.error('Error fetching grouped categories:', err);
@@ -59,6 +62,30 @@ router.put('/update/:currentName', async (req, res) => {
 
     console.error('Error updating category:', error);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// PUT change category group
+router.put('/:id/group', async (req, res) => {
+  const categoryId = parseInt(req.params.id, 10);
+  console.log('category ID: ', categoryId);
+  const { newGroupId } = req.body;
+
+  if (!categoryId || !newGroupId) {
+    return res
+      .status(400)
+      .json({ error: 'Category ID and newGroupId are required.' });
+  }
+
+  try {
+    const updatedCategory = await updateCategoryGroup(categoryId, newGroupId);
+    if (!updatedCategory) {
+      return res.status(404).json({ error: 'Category not found.' });
+    }
+    res.status(200).json(updatedCategory);
+  } catch (err) {
+    console.error('Error updating category group:', err);
+    res.status(500).json({ error: 'Internal server error.' });
   }
 });
 

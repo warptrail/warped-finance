@@ -124,10 +124,10 @@ export const fetchGroups = async () => {
 // Update a category's group
 export const updateCategoryGroup = async (categoryId, newGroupId) => {
   try {
-    const response = await fetch(`/api/categories/${categoryId}/update-group`, {
+    const response = await fetch(`${BASE_URL}/categories/${categoryId}/group`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ group_id: newGroupId }),
+      body: JSON.stringify({ categoryId, newGroupId }),
     });
 
     if (!response.ok) {

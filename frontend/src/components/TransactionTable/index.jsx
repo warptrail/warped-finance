@@ -42,8 +42,8 @@ const TransactionsTable = () => {
       });
   }, []);
 
-  console.log(categories);
-  console.table(tags);
+  // console.log(categories);
+  // console.table(tags);
 
   const columns = useMemo(
     () => [
