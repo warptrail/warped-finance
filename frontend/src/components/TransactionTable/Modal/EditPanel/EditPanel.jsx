@@ -1,4 +1,3 @@
-/* eslint-disable react/prop-types */
 import { useState, useEffect } from 'react';
 import styles from './EditPanel.module.css';
 import parentStyles from '../Modal.module.css';
@@ -8,16 +7,8 @@ import {
 } from '../../../../utils/api';
 
 const EditPanel = ({ transaction, categories, onClose, refreshTable }) => {
-  console.log(
-    'hello, edit panel. are you ready to edit the shit outa these things?'
-  );
-  console.log('onCLose', onClose);
-  console.log('transaction:', transaction);
-  console.log(Object.values(categories));
-
   const [formData, setFormData] = useState({ ...transaction });
   const [localTags, setLocalTags] = useState('');
-  console.log('formData', formData);
 
   useEffect(() => {
     const editableFields = [
@@ -54,7 +45,7 @@ const EditPanel = ({ transaction, categories, onClose, refreshTable }) => {
       console.log('formData', formData);
       console.log('local tags useEffect', localTags);
     }
-  }, [transaction]);
+  }, []);
 
   // * Handle Updates Functionality
 
@@ -121,7 +112,6 @@ const EditPanel = ({ transaction, categories, onClose, refreshTable }) => {
     }
   };
 
-  console.log('Local tag string', localTags);
   return (
     <form className={parentStyles.modalBody} onSubmit={handleSaveChanges}>
       <label>
@@ -147,11 +137,11 @@ const EditPanel = ({ transaction, categories, onClose, refreshTable }) => {
           <option value="" disabled>
             Select a category
           </option>
-          {Object.entries(categories).map(([groupName, groupCategories]) => (
-            <optgroup label={groupName} key={groupName}>
-              {groupCategories.map((cat) => (
-                <option value={cat.id} key={cat.id}>
-                  {cat.name}
+          {categories.map((group) => (
+            <optgroup label={group.group_name} key={group.group_id}>
+              {group.categories.map((cat) => (
+                <option value={cat.category_id} key={cat.category_id}>
+                  {cat.category_name}
                 </option>
               ))}
             </optgroup>

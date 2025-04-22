@@ -5,7 +5,7 @@ import Modal from './Modal/Modal';
 
 import {
   fetchTransactions,
-  fetchCategories,
+  fetchCategoriesByGroup,
   fetchTags,
   getTransactionById,
 } from '../../utils/api';
@@ -22,18 +22,13 @@ const TransactionsTable = () => {
 
   useEffect(() => {
     setLoading(true);
-    Promise.all([fetchTransactions(), fetchCategories(), fetchTags()])
-      .then(([transactionsData, categoriesData, tagsData]) => {
+    Promise.all([fetchTransactions(), fetchCategoriesByGroup(), fetchTags()])
+      .then(([transactionsData, groupedCategories, tagsData]) => {
         setTransactions(transactionsData);
 
-        // Group categories by their groupName for easier use in the dropdown
-        const groupedCategories = categoriesData.reduce((acc, category) => {
-          const { groupName, name, id } = category;
-          if (!acc[groupName]) acc[groupName] = [];
-          acc[groupName].push({ name, id });
-          return acc;
-        }, {});
+        // No need to transform categories; already grouped from the backend
         setCategories(groupedCategories);
+
         setTags(tagsData);
       })
       .catch((err) => console.error('Error fetching data:', err))
